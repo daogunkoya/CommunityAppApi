@@ -29,6 +29,7 @@ class GameEventController extends Controller
                 'date_from' => 'nullable|date',
                 'date_to' => 'nullable|date|after_or_equal:date_from',
                 'skill_level' => 'nullable|integer|min:1|max:3',
+                'my_games_only' => 'nullable|in:0,1,true,false',
                 'per_page' => 'nullable|integer|min:1|max:50',
                 'page' => 'nullable|integer|min:1',
             ]);
@@ -38,7 +39,7 @@ class GameEventController extends Controller
             $user = $request->user();
 
             $query = GameEvent::with(['gameType', 'organiser', 'participants'])
-                ->where('starts_at', '>=', now())
+                ->where('starts_at', '>', now()->startOfMinute())
                 ->orderBy('starts_at', 'asc');
 
             // Apply filters
@@ -53,15 +54,25 @@ class GameEventController extends Controller
             }
 
             if (isset($validated['date_from'])) {
-                $query->where('starts_at', '>=', $validated['date_from']);
+                $query->whereDate('starts_at', '>=', $validated['date_from']);
             }
 
             if (isset($validated['date_to'])) {
-                $query->where('starts_at', '<=', $validated['date_to']);
+                $query->whereDate('starts_at', '<=', $validated['date_to']);
             }
 
             if (isset($validated['skill_level'])) {
                 $query->where('skill_level', $validated['skill_level']);
+            }
+
+            // Handle my_games_only filter
+            if (isset($validated['my_games_only'])) {
+                $myGamesOnly = $validated['my_games_only'];
+                $shouldFilter = in_array($myGamesOnly, [true, 'true', '1', 1]);
+
+                if ($shouldFilter) {
+                    $query->where('organiser_id', $user->id);
+                }
             }
 
             $events = $query->paginate($perPage, ['*'], 'page', $page);

@@ -16,8 +16,9 @@ class GameEvent extends Model
     protected $guarded = [];
 
     protected $casts = [
-    'skill_level' => SkillLevel::class,
-];
+        'skill_level' => SkillLevel::class,
+        'starts_at' => 'datetime',
+    ];
 
   public function scopeMatchesUserSkill(Builder $query, User $user): Builder
 {

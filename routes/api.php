@@ -6,8 +6,10 @@ use App\Http\Controllers\EmailVerificationController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\GameEventController;
 use App\Http\Controllers\DiscussionController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Middleware\ApiSecurityMiddleware;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 
 // Apply security middleware to all API routes
@@ -23,7 +25,9 @@ Route::middleware([ApiSecurityMiddleware::class])->group(function () {
 
     // Sport statistics (public endpoint for sport categories)
     Route::get('/sport-stats', function () {
-        $sportStats = App\Models\GameType::withCount('events')
+        $sportStats = App\Models\GameType::withCount(['events' => function ($query) {
+                $query->where('starts_at', '>', now()->startOfMinute());
+            }])
             ->get()
             ->filter(function ($sport) {
                 return $sport->events_count > 0;
@@ -71,6 +75,12 @@ Route::middleware([ApiSecurityMiddleware::class])->group(function () {
                 ]
             ]);
         });
+
+        // Profile management
+        Route::get('/profile', [ProfileController::class, 'show']);
+        Route::post('/profile', [ProfileController::class, 'update']);
+
+
 
         Route::post('/logout', function (Request $request) {
             $request->user()->tokens()->delete();
