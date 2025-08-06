@@ -4,6 +4,11 @@ use App\Models\Comment;
 use App\Models\Discussion;
 use App\Models\Game;
 use App\Models\User;
+use Laravel\Passport\Passport;
+
+beforeEach(function () {
+        Passport::actingAs(User::factory()->create());
+});
 
 it('test home shows a json structure of discussuins and game', function () {
 

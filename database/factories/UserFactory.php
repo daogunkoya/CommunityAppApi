@@ -23,11 +23,23 @@ class UserFactory extends Factory
      */
     public function definition(): array
     {
+        $firstName = fake()->firstName();
+        $lastName = fake()->lastName();
+
         return [
-            'name' => fake()->name(),
+            'first_name' => $firstName,
+            'last_name' => $lastName,
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
+            'location' => fake()->city() . ', ' . fake()->state(),
+            'gender' => fake()->randomElement(['male', 'female', 'other', 'prefer_not_to_say']),
+            'date_of_birth' => fake()->dateTimeBetween('-50 years', '-18 years')->format('Y-m-d'),
+            'bio' => fake()->paragraph(2),
+            'phone' => fake()->phoneNumber(),
+            'profile_picture' => null,
+            'is_active' => true,
+            'last_login_at' => fake()->dateTimeBetween('-30 days', 'now'),
             'remember_token' => Str::random(10),
         ];
     }
@@ -39,6 +51,38 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
+            'email_verification_token' => Str::random(64),
+            'email_verification_sent_at' => now(),
+        ]);
+    }
+
+    /**
+     * Create a user with specific sport interests.
+     */
+    public function withSportInterests(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'bio' => fake()->paragraph(2) . ' I love playing sports and staying active!',
+        ]);
+    }
+
+    /**
+     * Create an inactive user.
+     */
+    public function inactive(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'is_active' => false,
+        ]);
+    }
+
+    /**
+     * Create a user with recent activity.
+     */
+    public function recentlyActive(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'last_login_at' => fake()->dateTimeBetween('-7 days', 'now'),
         ]);
     }
 }

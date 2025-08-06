@@ -1,0 +1,14 @@
+# Log Configuration for Daily Logs
+# Replace these lines in your .env file
+
+LOG_CHANNEL=daily
+LOG_STACK=daily
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL=debug
+LOG_DAILY_DAYS=30
+
+# This will:
+# - Use daily log files (laravel-YYYY-MM-DD.log)
+# - Keep logs for 30 days
+# - Log all debug level messages
+# - Store logs in storage/logs/ directory

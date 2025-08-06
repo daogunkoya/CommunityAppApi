@@ -1,0 +1,19 @@
+# Mailtrap Configuration Template
+# Replace the placeholder values with your actual Mailtrap credentials
+
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.mailtrap.io
+MAIL_PORT=2525
+MAIL_USERNAME=your_mailtrap_username_here
+MAIL_PASSWORD=your_mailtrap_password_here
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS="noreply@communitysport.com"
+MAIL_FROM_NAME="Community Sport"
+
+# Instructions:
+# 1. Sign up at https://mailtrap.io
+# 2. Create a new inbox
+# 3. Go to Settings > SMTP Settings
+# 4. Copy your username and password
+# 5. Replace the placeholder values above
+# 6. Copy these lines to your .env file
