@@ -30,9 +30,11 @@ class GameEventController extends Controller
                 'date_to' => 'nullable|date|after_or_equal:date_from',
                 'skill_level' => 'nullable|integer|min:1|max:3',
                 'per_page' => 'nullable|integer|min:1|max:50',
+                'page' => 'nullable|integer|min:1',
             ]);
 
-            $perPage = $validated['per_page'] ?? 15;
+            $perPage = $validated['per_page'] ?? 12; // Show 12 games per page for better UX
+            $page = $validated['page'] ?? 1;
             $user = $request->user();
 
             $query = GameEvent::with(['gameType', 'organiser', 'participants'])
@@ -62,7 +64,7 @@ class GameEventController extends Controller
                 $query->where('skill_level', $validated['skill_level']);
             }
 
-            $events = $query->paginate($perPage);
+            $events = $query->paginate($perPage, ['*'], 'page', $page);
 
             return response()->json([
                 'success' => true,
