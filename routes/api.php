@@ -21,6 +21,36 @@ Route::middleware([ApiSecurityMiddleware::class])->group(function () {
         return App\Models\GameType::all();
     });
 
+    // Sport statistics (public endpoint for sport categories)
+    Route::get('/sport-stats', function () {
+        $sportStats = App\Models\GameType::withCount('gameEvents')
+            ->get()
+            ->filter(function ($sport) {
+                return $sport->game_events_count > 0;
+            })
+            ->map(function ($sport) {
+                return [
+                    'name' => $sport->name,
+                    'count' => $sport->game_events_count,
+                    'color' => match (strtolower($sport->name)) {
+                        'tennis' => 'bg-sport-green',
+                        'football' => 'bg-sport-orange',
+                        'basketball' => 'bg-sport-blue',
+                        'cycling' => 'bg-sport-red',
+                        'swimming' => 'bg-primary',
+                        default => 'bg-accent',
+                    },
+                ];
+            })
+            ->sortByDesc('count')
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $sportStats
+        ]);
+    });
+
     // Email verification routes
     Route::post('/email/verify', [EmailVerificationController::class, 'verify']);
     Route::post('/email/resend', [EmailVerificationController::class, 'resend']);
