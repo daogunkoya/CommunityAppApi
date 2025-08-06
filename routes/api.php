@@ -45,16 +45,7 @@ Route::middleware([ApiSecurityMiddleware::class])->group(function () {
             ->sortByDesc('count')
             ->values();
 
-        // Add "All Sports" category with total count
-        $totalEvents = App\Models\GameEvent::count();
-        $allSportsCategory = [
-            'name' => 'All Sports',
-            'count' => $totalEvents,
-            'color' => 'bg-primary'
-        ];
 
-        // Prepend "All Sports" to the beginning of the array
-        $sportStats = collect([$allSportsCategory])->merge($sportStats);
 
         return response()->json([
             'success' => true,
