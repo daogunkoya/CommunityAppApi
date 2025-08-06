@@ -414,23 +414,27 @@ class GameEventController extends Controller
     public function stats(Request $request): JsonResponse
     {
         try {
-            $stats = GameType::withCount(['gameEvents' => function ($query) {
-                $query->where('starts_at', '>=', now());
-            }])->get()->map(function ($sport) {
+            // Get sport statistics with total counts (not just upcoming)
+            $sportStats = GameType::withCount('gameEvents')->get()->map(function ($sport) {
                 return [
                     'name' => $sport->name,
                     'count' => $sport->game_events_count,
                     'color' => $this->getSportColor($sport->name),
                 ];
-            });
+            })->filter(function ($sport) {
+                return $sport['count'] > 0; // Only return sports with events
+            })->sortByDesc('count')->values();
 
-            $totalEvents = GameEvent::where('starts_at', '>=', now())->count();
+            // Get upcoming events count
+            $upcomingEvents = GameEvent::where('starts_at', '>=', now())->count();
+            $totalEvents = GameEvent::count();
             $totalParticipants = DB::table('game_event_participants')->count();
 
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'sports' => $stats,
+                    'sports' => $sportStats,
+                    'upcoming_events' => $upcomingEvents,
                     'total_events' => $totalEvents,
                     'total_participants' => $totalParticipants,
                 ]
