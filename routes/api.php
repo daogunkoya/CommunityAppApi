@@ -23,15 +23,15 @@ Route::middleware([ApiSecurityMiddleware::class])->group(function () {
 
     // Sport statistics (public endpoint for sport categories)
     Route::get('/sport-stats', function () {
-        $sportStats = App\Models\GameType::withCount('gameEvents')
+        $sportStats = App\Models\GameType::withCount('events')
             ->get()
             ->filter(function ($sport) {
-                return $sport->game_events_count > 0;
+                return $sport->events_count > 0;
             })
             ->map(function ($sport) {
                 return [
                     'name' => $sport->name,
-                    'count' => $sport->game_events_count,
+                    'count' => $sport->events_count,
                     'color' => match (strtolower($sport->name)) {
                         'tennis' => 'bg-sport-green',
                         'football' => 'bg-sport-orange',
@@ -44,6 +44,17 @@ Route::middleware([ApiSecurityMiddleware::class])->group(function () {
             })
             ->sortByDesc('count')
             ->values();
+
+        // Add "All Sports" category with total count
+        $totalEvents = App\Models\GameEvent::count();
+        $allSportsCategory = [
+            'name' => 'All Sports',
+            'count' => $totalEvents,
+            'color' => 'bg-primary'
+        ];
+
+        // Prepend "All Sports" to the beginning of the array
+        $sportStats = collect([$allSportsCategory])->merge($sportStats);
 
         return response()->json([
             'success' => true,
