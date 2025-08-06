@@ -16,6 +16,11 @@ Route::middleware([ApiSecurityMiddleware::class])->group(function () {
     Route::post('/login', AuthLoginController::class);
     Route::post('/register', AuthRegisterController::class);
 
+    // Game types (public endpoint for creating games)
+    Route::get('/game-types', function () {
+        return App\Models\GameType::all();
+    });
+
     // Email verification routes
     Route::post('/email/verify', [EmailVerificationController::class, 'verify']);
     Route::post('/email/resend', [EmailVerificationController::class, 'resend']);
