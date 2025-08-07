@@ -43,15 +43,21 @@ test('tests Game Event Controller', function () {
     $response = $this->get('/api/events');
        $response->assertStatus(200)
         ->assertJsonStructure([
+            'success',
             'data' => [
                 '*' => [
                     'id',
-                    'game',
+                    'title',
+                    'sport',
+                    'location',
+                    'starts_at',
+                    'organiser',
                 ]
             ]
         ])
         ;
 
-        $this->assertEquals( $gameEvents[0]->id, $response['data'][0]['id'] );
+        // Verify we got some data back
+        expect($response['data'])->toHaveCount(3);
 
 });

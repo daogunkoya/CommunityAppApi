@@ -44,7 +44,7 @@ class ProfileController extends Controller
     /**
      * Update the current user's profile
      */
-        public function update(UpdateProfileRequest $request): JsonResponse
+    public function update(UpdateProfileRequest $request): JsonResponse
     {
         try {
             $user = $request->user();
@@ -87,10 +87,10 @@ class ProfileController extends Controller
                     Storage::disk('public')->delete($user->profile_picture);
                 }
 
-                                        // Store new profile picture
-                        $path = $file->store('profile-pictures', 'public');
-                        Log::info('Profile picture stored at: ' . $path);
-                        $validated['profile_picture'] = $path;
+                // Store new profile picture
+                $path = $file->store('profile-pictures', 'public');
+                Log::info('Profile picture stored at: ' . $path);
+                $validated['profile_picture'] = $path;
             } elseif (isset($validated['profile_picture']) && is_string($validated['profile_picture'])) {
                 // Handle base64 image from mobile app
                 $base64Image = $validated['profile_picture'];
@@ -126,7 +126,7 @@ class ProfileController extends Controller
                 $validated['profile_picture'] = $filename;
             }
 
-                                    // Check if email is being changed
+            // Check if email is being changed
             $emailChanged = isset($validated['email']) && $validated['email'] !== $user->email;
 
             // Update user

@@ -43,15 +43,13 @@ class GameEventFactory extends Factory
         return [
             'game_type_id' => GameType::factory(),
             'organiser_id' => User::factory(),
-            'skill_level' => fake()->randomElement([1, 2, 3, 4]),
+            'skill_level' => fake()->randomElement([1, 2, 3]),
             'location' => fake()->randomElement($venues),
             'starts_at' => $startDate,
-            'ends_at' => fake()->dateTimeBetween($startDate, '+3 hours'),
             'venue_booked' => fake()->boolean(80), // 80% chance of being booked
             'max_participants' => fake()->randomElement([4, 6, 8, 10, 12, 16, 20]),
             'waiting_list_enabled' => fake()->boolean(70), // 70% chance of having waiting list
             'notes' => fake()->paragraph(2),
-            'status' => fake()->randomElement(['upcoming', 'ongoing', 'completed', 'cancelled']),
         ];
     }
 
@@ -83,7 +81,7 @@ class GameEventFactory extends Factory
     public function advanced(): static
     {
         return $this->state(fn (array $attributes) => [
-            'skill_level' => fake()->randomElement([3, 4]),
+            'skill_level' => fake()->randomElement([2, 3]),
             'notes' => fake()->paragraph(2) . ' Advanced players only. Competitive play expected.',
         ]);
     }

@@ -25,7 +25,7 @@ class UpdateProfileRequest extends FormRequest
             'email' => 'sometimes|email|unique:users,email,' . $this->user()->id,
             'location' => 'sometimes|string|max:255',
             'phone' => 'sometimes|string|max:20',
-            'profile_picture' => 'sometimes|file|image|mimes:jpeg,jpg,png,gif|max:2048|string', // 2MB max or base64 string (server limit)
+            'profile_picture' => 'sometimes', // Allow both file uploads and base64 strings - validation handled in controller
         ];
     }
 
