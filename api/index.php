@@ -33,7 +33,7 @@ try {
     // Bootstrap Laravel
     $app = require_once __DIR__ . '/../bootstrap/app.php';
 
-    // Create a custom API-only kernel that disables session middleware
+    // Create a custom application that only loads API routes
     $app->singleton('Illuminate\Contracts\Http\Kernel', function ($app) {
         return new class($app) extends \Illuminate\Foundation\Http\Kernel {
             protected $middleware = [
@@ -66,6 +66,11 @@ try {
                 'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
                 'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
             ];
+
+            public function __construct($app, $router)
+            {
+                parent::__construct($app, $router);
+            }
 
             public function handle($request)
             {
