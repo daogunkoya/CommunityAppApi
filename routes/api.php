@@ -7,16 +7,30 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\GameEventController;
 use App\Http\Controllers\DiscussionController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\LocationController;
+use App\Http\Controllers\AddressController;
+use App\Http\Controllers\CommunityController;
 use App\Http\Middleware\ApiSecurityMiddleware;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 
-// Apply security middleware to all API routes
+// Public routes (no authentication required)
+Route::post('/login', AuthLoginController::class);
+Route::post('/register', AuthRegisterController::class);
+
+// Address validation and autocomplete (public endpoints)
+Route::prefix('address')->group(function () {
+    Route::get('/autocomplete', [AddressController::class, 'getAutocompleteSuggestions']);
+    Route::get('/place-details', [AddressController::class, 'getPlaceDetails']);
+    Route::get('/search-postcode', [AddressController::class, 'searchByPostcode']);
+    Route::post('/validate', [AddressController::class, 'validateAddress']);
+    Route::get('/components', [AddressController::class, 'getAddressComponents']);
+    Route::get('/nearby-places', [AddressController::class, 'getNearbyPlaces']);
+});
+
+// Apply security middleware to protected API routes
 Route::middleware([ApiSecurityMiddleware::class])->group(function () {
-    // Public routes
-    Route::post('/login', AuthLoginController::class);
-    Route::post('/register', AuthRegisterController::class);
 
     // Game types (public endpoint for creating games)
     Route::get('/game-types', function () {
@@ -98,6 +112,32 @@ Route::middleware([ApiSecurityMiddleware::class])->group(function () {
         Route::put('/events/{event}', [GameEventController::class, 'update']);
         Route::delete('/events/{event}', [GameEventController::class, 'destroy']);
         Route::post('/events/{event}/join', [GameEventController::class, 'join']);
+
+        // Location-based features
+        Route::prefix('location')->group(function () {
+            Route::post('/update', [LocationController::class, 'updateLocation']);
+            Route::post('/validate', [LocationController::class, 'validateAddress']);
+            Route::get('/suggestions', [LocationController::class, 'getLocationSuggestions']);
+            Route::get('/place-details', [LocationController::class, 'getPlaceDetails']);
+            Route::get('/search-postcode', [LocationController::class, 'searchByPostcode']);
+            Route::get('/nearby-users', [LocationController::class, 'getNearbyUsers']);
+            Route::get('/community-users', [LocationController::class, 'getCommunityUsers']);
+            Route::get('/nearby-events', [LocationController::class, 'getNearbyGameEvents']);
+            Route::get('/community-events', [LocationController::class, 'getCommunityGameEvents']);
+            Route::get('/community-statistics', [LocationController::class, 'getCommunityStatistics']);
+            Route::get('/search-communities', [LocationController::class, 'searchCommunities']);
+            Route::get('/popular-communities', [LocationController::class, 'getPopularCommunities']);
+            Route::get('/community-recommendations', [LocationController::class, 'getCommunityRecommendations']);
+            Route::get('/recommendations', [LocationController::class, 'getLocationBasedRecommendations']);
+        });
+
+        // Community management
+        Route::prefix('communities')->group(function () {
+            Route::get('/my-communities', [CommunityController::class, 'getUserCommunities']);
+            Route::get('/all', [CommunityController::class, 'getAllCommunities']);
+            Route::get('/primary', [CommunityController::class, 'getPrimaryCommunity']);
+            Route::get('/{communityId}/stats', [CommunityController::class, 'getCommunityStats']);
+        });
         Route::delete('/events/{event}/leave', [GameEventController::class, 'leave']);
 
         // Discussions

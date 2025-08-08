@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use App\Models\GameType;
 
 class Discussion extends Model
 {
@@ -16,12 +17,18 @@ class Discussion extends Model
     protected $fillable = [
         'title',
         'body',
-        'user_id'
+        'user_id',
+        'game_type_id'
     ];
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function gameType(): BelongsTo
+    {
+        return $this->belongsTo(GameType::class);
     }
 
     public function comments(): HasMany

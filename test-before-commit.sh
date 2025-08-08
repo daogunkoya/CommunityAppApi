@@ -31,4 +31,4 @@ else
     echo "🔄 Re-run tests after fixing:"
     echo "   php artisan test"
     exit 1
-fi 
+fi

@@ -12,6 +12,13 @@ class GameType extends Model
 
     protected $guarded = [];
 
+    protected $fillable = [
+        'name',
+        'description',
+        'icon_path',
+        'color'
+    ];
+
     public function usersInterested()
     {
         return $this->belongsToMany(User::class, 'game_user_interest')->withPivot('skill_level');

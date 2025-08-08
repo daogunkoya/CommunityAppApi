@@ -7,6 +7,7 @@ use App\Repositories\GameEventRepository;
 use App\Models\GameEvent;
 use App\Models\GameType;
 use App\Models\User;
+use App\Models\Community;
 use Carbon\Carbon;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Http\JsonResponse;
@@ -30,6 +31,9 @@ class GameEventController extends Controller
                 'date_to' => 'nullable|date|after_or_equal:date_from',
                 'skill_level' => 'nullable|integer|min:1|max:3',
                 'my_games_only' => 'nullable|in:0,1,true,false',
+                'nearby_only' => 'nullable|in:0,1,true,false',
+                'radius_km' => 'nullable|numeric|min:1|max:100',
+                'community_id' => 'nullable|exists:communities,id',
                 'per_page' => 'nullable|integer|min:1|max:50',
                 'page' => 'nullable|integer|min:1',
             ]);
@@ -38,9 +42,24 @@ class GameEventController extends Controller
             $page = $validated['page'] ?? 1;
             $user = $request->user();
 
-            $query = GameEvent::with(['gameType', 'organiser', 'participants'])
-                ->where('starts_at', '>', now()->startOfMinute())
+            $query = GameEvent::with(['gameType', 'organiser', 'participants', 'community'])
+                ->where('starts_at', '>', now()->startOfMinute());
+
+            // If user has location, calculate distance and sort by distance
+            if ($user && $user->latitude && $user->longitude) {
+                $query->selectRaw("
+                    game_events.*,
+                    (6371 * acos(cos(radians(?)) * cos(radians(latitude)) *
+                    cos(radians(longitude) - radians(?)) + sin(radians(?)) *
+                    sin(radians(latitude)))) AS distance
+                ", [$user->latitude, $user->longitude, $user->latitude])
+                ->whereNotNull('latitude')
+                ->whereNotNull('longitude')
+                ->orderBy('distance', 'asc')
                 ->orderBy('starts_at', 'asc');
+            } else {
+                $query->orderBy('starts_at', 'asc');
+            }
 
             // Apply filters
             if (isset($validated['sport'])) {
@@ -51,6 +70,26 @@ class GameEventController extends Controller
 
             if (isset($validated['location'])) {
                 $query->where('location', 'like', '%' . $validated['location'] . '%');
+            }
+
+            // Handle nearby games filter
+            if (isset($validated['nearby_only']) && $user) {
+                $nearbyOnly = $validated['nearby_only'];
+                $shouldFilter = in_array($nearbyOnly, [true, 'true', '1', 1]);
+                $radiusKm = $validated['radius_km'] ?? 10; // Default 10km radius
+
+                if ($shouldFilter && $user->latitude && $user->longitude) {
+                    $query->whereRaw('
+                        (6371 * acos(cos(radians(?)) * cos(radians(latitude)) *
+                        cos(radians(longitude) - radians(?)) + sin(radians(?)) *
+                        sin(radians(latitude)))) <= ?
+                    ', [$user->latitude, $user->longitude, $user->latitude, $radiusKm]);
+                }
+            }
+
+            // Handle community filter
+            if (isset($validated['community_id'])) {
+                $query->where('community_id', $validated['community_id']);
             }
 
             if (isset($validated['date_from'])) {
@@ -75,16 +114,36 @@ class GameEventController extends Controller
                 }
             }
 
-            $events = $query->paginate($perPage, ['*'], 'page', $page);
+                            $events = $query->paginate($perPage, ['*'], 'page', $page);
 
             return response()->json([
                 'success' => true,
                 'data' => $events->map(function ($event) use ($user) {
+                    // Calculate distance from logged-in user to the event location
+                    $distance = null;
+                    if ($user && $user->latitude && $user->longitude && $event->latitude && $event->longitude) {
+                        $distance = $this->calculateDistance(
+                            $user->latitude, $user->longitude,
+                            $event->latitude, $event->longitude
+                        );
+                    }
+
                     return [
                         'id' => $event->id,
                         'title' => $event->gameType->name . ' Game',
                         'sport' => $event->gameType->name,
                         'location' => $event->location,
+                        'address' => $event->address,
+                        'city' => $event->city,
+                        'borough' => $event->borough,
+                        'community' => $event->community ? [
+                            'id' => $event->community->id,
+                            'name' => $event->community->name,
+                            'type' => $event->community->type,
+                            'full_location' => $event->community->full_location,
+                        ] : null,
+                        'distance_km' => $distance,
+                        'distance_formatted' => $distance !== null ? $this->formatDistance($distance) : null,
                         'starts_at' => Carbon::parse($event->starts_at)->format('Y-m-d H:i'),
                         'starts_at_relative' => Carbon::parse($event->starts_at)->diffForHumans(),
                         'skill_level' => $event->skill_level->value,
@@ -150,6 +209,15 @@ class GameEventController extends Controller
             $validated = $request->validate([
                 'game_type_id' => 'required|exists:game_types,id',
                 'location' => 'required|string|max:255',
+                'address' => 'nullable|string|max:500',
+                'city' => 'nullable|string|max:255',
+                'state' => 'nullable|string|max:255',
+                'postal_code' => 'nullable|string|max:20',
+                'country' => 'nullable|string|max:255',
+                'latitude' => 'nullable|numeric',
+                'longitude' => 'nullable|numeric',
+                'community_name' => 'nullable|string|max:255',
+                'borough' => 'nullable|string|max:255',
                 'starts_at' => 'required|date|after:now',
                 'skill_level' => 'required|integer|min:1|max:3',
                 'max_participants' => 'nullable|integer|min:1|max:50',
@@ -160,9 +228,37 @@ class GameEventController extends Controller
 
             DB::beginTransaction();
 
+            // Assign community if location data is provided
+            $communityId = null;
+            if (!empty($validated['community_name']) || !empty($validated['borough'])) {
+                $communityName = $validated['community_name'] ?? $validated['borough'];
+                $city = $validated['city'] ?? 'London';
+                $state = $validated['state'] ?? 'England';
+                $country = $validated['country'] ?? 'UK';
+
+                $community = Community::firstOrCreate(
+                    [
+                        'name' => $communityName,
+                        'city' => $city,
+                        'state' => $state,
+                        'country' => $country,
+                    ],
+                    [
+                        'type' => 'borough',
+                        'latitude' => $validated['latitude'] ?? null,
+                        'longitude' => $validated['longitude'] ?? null,
+                        'description' => "Community in {$city}, {$state}",
+                        'is_active' => true,
+                    ]
+                );
+
+                $communityId = $community->id;
+            }
+
             $event = GameEvent::create([
                 ...$validated,
                 'organiser_id' => $request->user()->id,
+                'community_id' => $communityId,
             ]);
 
             // Auto-join the organiser
@@ -473,5 +569,40 @@ class GameEventController extends Controller
             'swimming' => 'bg-primary',
             default => 'bg-accent',
         };
+    }
+
+    /**
+     * Calculate distance between two points using Haversine formula
+     */
+    private function calculateDistance(float $lat1, float $lon1, float $lat2, float $lon2): float
+    {
+        $earthRadius = 6371; // Earth's radius in kilometers
+
+        $latDelta = deg2rad($lat2 - $lat1);
+        $lonDelta = deg2rad($lon2 - $lon1);
+
+        $a = sin($latDelta / 2) * sin($latDelta / 2) +
+             cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+             sin($lonDelta / 2) * sin($lonDelta / 2);
+
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        return $earthRadius * $c;
+    }
+
+    /**
+     * Format distance for display
+     */
+    private function formatDistance(float $distance): string
+    {
+        $miles = $distance * 0.621371; // Convert km to miles
+
+        if ($distance < 8) { // ~5 miles in km
+            return '< 5 miles away';
+        } elseif ($distance < 10) {
+            return round($miles, 1) . ' miles';
+        } else {
+            return round($miles) . ' miles';
+        }
     }
 }

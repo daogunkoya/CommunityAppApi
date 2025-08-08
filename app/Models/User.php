@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Passport\HasApiTokens;
 use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -24,6 +25,16 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'password',
         'location',
+        'address',
+        'city',
+        'state',
+        'postal_code',
+        'country',
+        'latitude',
+        'longitude',
+        'community_name',
+        'borough',
+        'location_verified',
         'gender',
         'date_of_birth',
         'bio',
@@ -59,6 +70,9 @@ class User extends Authenticatable implements MustVerifyEmail
             'is_active' => 'boolean',
             'last_login_at' => 'datetime',
             'email_verification_sent_at' => 'datetime',
+            'latitude' => 'decimal:8',
+            'longitude' => 'decimal:8',
+            'location_verified' => 'boolean',
         ];
     }
 
@@ -89,6 +103,122 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verification_sent_at' => now(),
         ]);
         return $token;
+    }
+
+    /**
+     * Get the communities that the user belongs to.
+     */
+    public function communities(): BelongsToMany
+    {
+        return $this->belongsToMany(Community::class, 'user_communities')
+                    ->withPivot('is_primary', 'is_active', 'joined_at')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Get the user's primary community.
+     */
+    public function primaryCommunity()
+    {
+        return $this->communities()->wherePivot('is_primary', true)->first();
+    }
+
+    /**
+     * Get the user's active communities.
+     */
+    public function activeCommunities(): BelongsToMany
+    {
+        return $this->communities()->wherePivot('is_active', true);
+    }
+
+    /**
+     * Get the full address string.
+     */
+    public function getFullAddressAttribute(): string
+    {
+        $parts = array_filter([
+            $this->address,
+            $this->city,
+            $this->state,
+            $this->postal_code,
+            $this->country
+        ]);
+        return implode(', ', $parts);
+    }
+
+    /**
+     * Get the short address string.
+     */
+    public function getShortAddressAttribute(): string
+    {
+        $parts = array_filter([$this->city, $this->state, $this->country]);
+        return implode(', ', $parts);
+    }
+
+    /**
+     * Get the community location string.
+     */
+    public function getCommunityLocationAttribute(): string
+    {
+        if ($this->community_name && $this->borough) {
+            return "{$this->community_name}, {$this->borough}";
+        }
+
+        if ($this->community_name) {
+            return $this->community_name;
+        }
+
+        return $this->short_address;
+    }
+
+    /**
+     * Scope to get users by community.
+     */
+    public function scopeByCommunity($query, string $communityName, string $city = null, string $state = null)
+    {
+        $query->where('community_name', $communityName);
+
+        if ($city) {
+            $query->where('city', $city);
+        }
+
+        if ($state) {
+            $query->where('state', $state);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Scope to get users within a radius.
+     */
+    public function scopeWithinRadius($query, float $latitude, float $longitude, float $radiusKm = 10)
+    {
+        $earthRadius = 6371; // Earth's radius in kilometers
+
+        return $query->selectRaw("
+                *,
+                ({$earthRadius} * acos(cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) + sin(radians(?)) * sin(radians(latitude)))) AS distance
+            ", [$latitude, $longitude, $latitude])
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->having('distance', '<=', $radiusKm)
+            ->orderBy('distance');
+    }
+
+    /**
+     * Get nearby users.
+     */
+    public function getNearbyUsers(float $radiusKm = 10): \Illuminate\Database\Eloquent\Collection
+    {
+        if (!$this->latitude || !$this->longitude) {
+            return collect();
+        }
+
+        return static::where('id', '!=', $this->id)
+            ->where('is_active', true)
+            ->withinRadius($this->latitude, $this->longitude, $radiusKm)
+            ->get();
     }
 
     /**

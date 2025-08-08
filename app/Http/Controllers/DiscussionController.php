@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 class DiscussionController extends Controller
@@ -26,14 +27,17 @@ class DiscussionController extends Controller
                 'topic' => 'nullable|string|max:255',
                 'sort' => 'nullable|in:latest,popular,trending',
                 'per_page' => 'nullable|integer|min:1|max:50',
+                'game_type' => 'nullable|string|max:255',
+                'my_discussions_only' => 'nullable|string|in:true,false,0,1',
+                'date_from' => 'nullable|date',
+                'date_to' => 'nullable|date',
             ]);
 
             $perPage = $validated['per_page'] ?? 15;
             $user = $request->user();
 
-            $query = Discussion::with(['user', 'comments', 'likes'])
-                ->withCount(['comments', 'likes'])
-                ->orderBy('created_at', 'desc');
+            $query = Discussion::with(['user', 'gameType', 'comments', 'likes'])
+                ->withCount(['comments', 'likes']);
 
             // Apply search filter
             if (isset($validated['search'])) {
@@ -45,7 +49,55 @@ class DiscussionController extends Controller
 
             // Apply topic filter
             if (isset($validated['topic'])) {
-                $query->where('title', 'like', '%' . $validated['topic'] . '%');
+                $query->where(function ($q) use ($validated) {
+                    $q->where('title', 'like', '%' . $validated['topic'] . '%')
+                      ->orWhere('body', 'like', '%' . $validated['topic'] . '%');
+                });
+            }
+
+            // Apply game type filter
+            if (isset($validated['game_type'])) {
+                Log::info('Game type filter applied:', ['received' => $validated['game_type']]);
+                $query->whereHas('gameType', function ($q) use ($validated) {
+                    // Convert frontend values to database format
+                    $gameTypeMap = [
+                        'football' => 'Football',
+                        'tennis' => 'Tennis',
+                        'basketball' => 'Basketball',
+                        'cricket' => 'Cricket',
+                        'rugby' => 'Rugby',
+                        'golf' => 'Golf',
+                        'swimming' => 'Swimming',
+                        'cycling' => 'Cycling',
+                        'running' => 'Running',
+                        'volleyball' => 'Volleyball',
+                        'badminton' => 'Badminton',
+                        'table-tennis' => 'Table Tennis',
+                        'hockey' => 'Hockey',
+                        'boxing' => 'Boxing',
+                        'martial-arts' => 'Martial Arts',
+                    ];
+                    
+                    $dbGameType = $gameTypeMap[$validated['game_type']] ?? $validated['game_type'];
+                    Log::info('Game type mapping:', ['frontend' => $validated['game_type'], 'database' => $dbGameType]);
+                    $q->where('name', $dbGameType);
+                });
+            }
+
+            // Apply my discussions filter
+            if (isset($validated['my_discussions_only'])) {
+                $isMyDiscussions = in_array($validated['my_discussions_only'], ['true', '1'], true);
+                if ($isMyDiscussions) {
+                    $query->where('user_id', $user->id);
+                }
+            }
+
+            // Apply date range filter
+            if (isset($validated['date_from'])) {
+                $query->where('created_at', '>=', $validated['date_from']);
+            }
+            if (isset($validated['date_to'])) {
+                $query->where('created_at', '<=', $validated['date_to'] . ' 23:59:59');
             }
 
             // Apply sorting
@@ -73,12 +125,17 @@ class DiscussionController extends Controller
                         'id' => $discussion->id,
                         'title' => $discussion->title,
                         'body' => $discussion->body,
-                        'excerpt' => \Str::limit($discussion->body, 150),
+                        'excerpt' => Str::limit($discussion->body, 150),
                         'author' => [
                             'id' => $discussion->user->id,
                             'name' => $discussion->user->full_name,
                             'avatar' => $discussion->user->profile_picture,
                         ],
+                        'game_type' => $discussion->gameType ? [
+                            'id' => $discussion->gameType->id,
+                            'name' => $discussion->gameType->name,
+                            'color' => $discussion->gameType->color,
+                        ] : null,
                         'stats' => [
                             'likes_count' => $discussion->likes_count,
                             'comments_count' => $discussion->comments_count,
@@ -125,6 +182,7 @@ class DiscussionController extends Controller
             $validated = $request->validate([
                 'title' => 'required|string|max:255',
                 'body' => 'required|string|max:5000',
+                'game_type_id' => 'nullable|exists:game_types,id',
             ]);
 
             DB::beginTransaction();
@@ -174,7 +232,7 @@ class DiscussionController extends Controller
     public function show(Discussion $discussion): JsonResponse
     {
         try {
-            $discussion->load(['user', 'comments.user', 'likes']);
+            $discussion->load(['user', 'gameType', 'comments.user', 'likes']);
 
             return response()->json([
                 'success' => true,
@@ -187,6 +245,11 @@ class DiscussionController extends Controller
                         'name' => $discussion->user->full_name,
                         'avatar' => $discussion->user->profile_picture,
                     ],
+                    'game_type' => $discussion->gameType ? [
+                        'id' => $discussion->gameType->id,
+                        'name' => $discussion->gameType->name,
+                        'color' => $discussion->gameType->color,
+                    ] : null,
                     'stats' => [
                         'likes_count' => $discussion->likes->count(),
                         'comments_count' => $discussion->comments->count(),
