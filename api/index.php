@@ -22,7 +22,16 @@ try {
     // Create bootstrap/cache directory if it doesn't exist
     $bootstrapCacheDir = __DIR__ . '/../bootstrap/cache';
     if (!is_dir($bootstrapCacheDir)) {
-        mkdir($bootstrapCacheDir, 0755, true);
+        $result = mkdir($bootstrapCacheDir, 0755, true);
+        error_log("Creating bootstrap/cache directory: " . ($result ? "SUCCESS" : "FAILED"));
+    }
+    
+    // Ensure the directory is writable
+    if (is_dir($bootstrapCacheDir)) {
+        chmod($bootstrapCacheDir, 0755);
+        error_log("Bootstrap cache directory exists and is writable: " . (is_writable($bootstrapCacheDir) ? "YES" : "NO"));
+    } else {
+        error_log("Bootstrap cache directory does not exist after creation attempt");
     }
 
     // Bootstrap Laravel
