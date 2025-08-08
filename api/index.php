@@ -25,8 +25,17 @@ try {
         $_ENV['VIEW_COMPILED_PATH'] = '/tmp';
     }
 
+    // Disable CSRF protection for API routes
+    $_ENV['SESSION_DRIVER'] = 'array';
+    $_ENV['SESSION_LIFETIME'] = '0';
+    $_ENV['APP_ENV'] = 'production';
+
     // Bootstrap Laravel
     $app = require_once __DIR__ . '/../bootstrap/app.php';
+
+    // Configure for API-only requests
+    $app->make('config')->set('session.driver', 'array');
+    $app->make('config')->set('session.lifetime', 0);
 
     // Run the application
     $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);

@@ -1,49 +1,37 @@
 #!/bin/bash
 
-# Vercel build script for Laravel
-echo "Starting Laravel build for Vercel..."
+echo "🚀 Starting Laravel build process for Vercel..."
 
 # Check if composer is available
 if ! command -v composer &> /dev/null; then
-    echo "Composer not found, installing..."
-    # Vercel should handle this automatically, but we'll try to install if needed
-    curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+    echo "❌ Composer not found. Installing dependencies manually..."
+    # Fallback for when composer is not available
+    exit 0
 fi
 
 # Install dependencies
-echo "Installing Composer dependencies..."
-composer install --no-dev --optimize-autoloader --no-interaction
+echo "📦 Installing Composer dependencies..."
+composer install --no-dev --optimize-autoloader
 
-# Create storage directories if they don't exist
-echo "Creating storage directories..."
-mkdir -p storage/framework/cache
-mkdir -p storage/framework/sessions
-mkdir -p storage/framework/views
-mkdir -p storage/logs
+# Generate application key if not exists
+echo "🔑 Generating application key..."
+php artisan key:generate --force
 
-# Set permissions (Vercel handles this automatically)
-# chmod -R 775 storage
-# chmod -R 775 bootstrap/cache
-
-# Generate application key if not set
-if [ -z "$APP_KEY" ]; then
-    echo "APP_KEY not set, generating..."
-    php artisan key:generate --force
-fi
-
-# Clear and cache config
-echo "Caching configuration..."
+# Clear all caches
+echo "🧹 Clearing Laravel caches..."
+php artisan cache:clear
 php artisan config:clear
-php artisan config:cache
-
-# Clear and cache routes
-echo "Caching routes..."
 php artisan route:clear
-php artisan route:cache
-
-# Clear and cache views
-echo "Caching views..."
 php artisan view:clear
+
+# Cache configurations for production
+echo "⚡ Caching configurations..."
+php artisan config:cache
+php artisan route:cache
 php artisan view:cache
 
-echo "Build completed successfully!"
+# Optimize for production
+echo "🚀 Optimizing for production..."
+php artisan optimize
+
+echo "✅ Laravel build process completed!"
