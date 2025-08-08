@@ -1,6 +1,6 @@
 <?php
 
-// Laravel entry point for Vercel
+// Laravel API-only entry point for Vercel
 try {
     // Load Composer autoloader
     require_once __DIR__ . '/../vendor/autoload.php';
@@ -32,6 +32,50 @@ try {
 
     // Bootstrap Laravel
     $app = require_once __DIR__ . '/../bootstrap/app.php';
+
+    // Create a custom API-only kernel that disables session middleware
+    $app->singleton('Illuminate\Contracts\Http\Kernel', function ($app) {
+        return new class($app) extends \Illuminate\Foundation\Http\Kernel {
+            protected $middleware = [
+                \App\Http\Middleware\TrustProxies::class,
+                \Illuminate\Http\Middleware\HandleCors::class,
+                \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
+                \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
+                \App\Http\Middleware\TrimStrings::class,
+                \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
+            ];
+
+            protected $middlewareGroups = [
+                'api' => [
+                    \App\Http\Middleware\DisableCsrfForApi::class,
+                    \Illuminate\Routing\Middleware\ThrottleRequests::class.':api',
+                    \Illuminate\Routing\Middleware\SubstituteBindings::class,
+                ],
+            ];
+
+            protected $middlewareAliases = [
+                'auth' => \App\Http\Middleware\Authenticate::class,
+                'auth.basic' => \Illuminate\Auth\Middleware\AuthenticateWithBasicAuth::class,
+                'auth.session' => \Illuminate\Session\Middleware\AuthenticateSession::class,
+                'cache.headers' => \Illuminate\Http\Middleware\SetCacheHeaders::class,
+                'can' => \Illuminate\Auth\Middleware\Authorize::class,
+                'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class,
+                'password.confirm' => \Illuminate\Auth\Middleware\RequirePassword::class,
+                'precognitive' => \Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests::class,
+                'signed' => \App\Http\Middleware\ValidateSignature::class,
+                'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
+                'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
+            ];
+
+            public function handle($request)
+            {
+                // Disable session middleware for all requests
+                $request->setLaravelSession(null);
+                
+                return parent::handle($request);
+            }
+        };
+    });
 
     // Run the application
     $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
