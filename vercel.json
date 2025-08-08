@@ -10,6 +10,5 @@
         "dest": "/api/index.php"
       }
     ],
-    "buildCommand": "chmod +x build.sh && ./build.sh",
-    "installCommand": "composer install --no-dev --optimize-autoloader"
+    "buildCommand": "composer install --no-dev --optimize-autoloader"
   }
