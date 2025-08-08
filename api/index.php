@@ -19,6 +19,12 @@ try {
         }
     }
 
+    // Create bootstrap/cache directory if it doesn't exist
+    $bootstrapCacheDir = __DIR__ . '/../bootstrap/cache';
+    if (!is_dir($bootstrapCacheDir)) {
+        mkdir($bootstrapCacheDir, 0755, true);
+    }
+
     // Bootstrap Laravel
     $app = require_once __DIR__ . '/../bootstrap/app.php';
 
@@ -37,7 +43,7 @@ try {
     // Log the error
     error_log('Laravel Error: ' . $e->getMessage());
     error_log('Stack trace: ' . $e->getTraceAsString());
-    
+
     // Return a proper error response
     http_response_code(500);
     echo json_encode([
