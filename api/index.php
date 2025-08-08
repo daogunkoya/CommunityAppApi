@@ -5,33 +5,24 @@ try {
     // Load Composer autoloader
     require_once __DIR__ . '/../vendor/autoload.php';
 
-    // Create storage directories if they don't exist
-    $storageDirs = [
-        __DIR__ . '/../storage/framework/cache',
-        __DIR__ . '/../storage/framework/sessions',
-        __DIR__ . '/../storage/framework/views',
-        __DIR__ . '/../storage/logs',
-    ];
-
-    foreach ($storageDirs as $dir) {
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
+    // Set environment variables for Vercel's read-only filesystem
+    if (!isset($_ENV['APP_CONFIG_CACHE'])) {
+        $_ENV['APP_CONFIG_CACHE'] = '/tmp/config.php';
     }
-
-    // Create bootstrap/cache directory if it doesn't exist
-    $bootstrapCacheDir = __DIR__ . '/../bootstrap/cache';
-    if (!is_dir($bootstrapCacheDir)) {
-        $result = mkdir($bootstrapCacheDir, 0755, true);
-        error_log("Creating bootstrap/cache directory: " . ($result ? "SUCCESS" : "FAILED"));
+    if (!isset($_ENV['APP_EVENTS_CACHE'])) {
+        $_ENV['APP_EVENTS_CACHE'] = '/tmp/events.php';
     }
-    
-    // Ensure the directory is writable
-    if (is_dir($bootstrapCacheDir)) {
-        chmod($bootstrapCacheDir, 0755);
-        error_log("Bootstrap cache directory exists and is writable: " . (is_writable($bootstrapCacheDir) ? "YES" : "NO"));
-    } else {
-        error_log("Bootstrap cache directory does not exist after creation attempt");
+    if (!isset($_ENV['APP_PACKAGES_CACHE'])) {
+        $_ENV['APP_PACKAGES_CACHE'] = '/tmp/packages.php';
+    }
+    if (!isset($_ENV['APP_ROUTES_CACHE'])) {
+        $_ENV['APP_ROUTES_CACHE'] = '/tmp/routes.php';
+    }
+    if (!isset($_ENV['APP_SERVICES_CACHE'])) {
+        $_ENV['APP_SERVICES_CACHE'] = '/tmp/services.php';
+    }
+    if (!isset($_ENV['VIEW_COMPILED_PATH'])) {
+        $_ENV['VIEW_COMPILED_PATH'] = '/tmp';
     }
 
     // Bootstrap Laravel
