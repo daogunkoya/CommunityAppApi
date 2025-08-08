@@ -22,6 +22,12 @@ class DisableCsrfForApi
         $request->headers->remove('X-CSRF-TOKEN');
         $request->headers->remove('X-XSRF-TOKEN');
         
+        // Disable session middleware for this request
+        $request->server->set('HTTP_X_REQUESTED_WITH', 'XMLHttpRequest');
+        
+        // Set content type to JSON
+        $request->headers->set('Content-Type', 'application/json');
+        
         return $next($request);
     }
-} 
+}
