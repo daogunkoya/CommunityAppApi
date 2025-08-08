@@ -28,6 +28,10 @@ try {
     // Bootstrap Laravel
     $app = require_once __DIR__ . '/../bootstrap/app.php';
 
+    // Configure for API requests (disable CSRF for API routes)
+    $app->make('config')->set('session.driver', 'array');
+    $app->make('config')->set('session.lifetime', 0);
+
     // Run the application
     $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
 
