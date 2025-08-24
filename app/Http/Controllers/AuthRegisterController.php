@@ -72,13 +72,16 @@ class AuthRegisterController extends Controller
 
             // Return response without token (user needs to verify email first)
             return response()->json([
+                'success' => true,
                 'message' => 'Registration successful! Please check your email to verify your account.',
-                'user' => [
-                    'id' => $user->id,
-                    'first_name' => $user->first_name,
-                    'last_name' => $user->last_name,
-                    'email' => $user->email,
-                    'email_verified_at' => $user->email_verified_at,
+                'data' => [
+                    'user' => [
+                        'id' => $user->id,
+                        'first_name' => $user->first_name,
+                        'last_name' => $user->last_name,
+                        'email' => $user->email,
+                        'email_verified_at' => $user->email_verified_at,
+                    ],
                 ],
                 'requires_verification' => true,
             ], 201);

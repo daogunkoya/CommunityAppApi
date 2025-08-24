@@ -22,6 +22,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $fillable = [
         'first_name',
         'last_name',
+        'name',
         'email',
         'password',
         'location',
@@ -43,6 +44,13 @@ class User extends Authenticatable implements MustVerifyEmail
         'is_active',
         'email_verification_token',
         'email_verification_sent_at',
+        'is_online',
+        'last_seen_at',
+        'radius',
+        'main_goal',
+        'auth_provider',
+        'auth_provider_id',
+        'allow_notifications',
     ];
 
     /**
@@ -73,6 +81,8 @@ class User extends Authenticatable implements MustVerifyEmail
             'latitude' => 'decimal:8',
             'longitude' => 'decimal:8',
             'location_verified' => 'boolean',
+            'is_online' => 'boolean',
+            'last_seen_at' => 'datetime',
         ];
     }
 
@@ -82,6 +92,18 @@ class User extends Authenticatable implements MustVerifyEmail
     public function getFullNameAttribute(): string
     {
         return "{$this->first_name} {$this->last_name}";
+    }
+
+    /**
+     * Get the user's age calculated from date of birth.
+     */
+    public function getAgeAttribute(): ?int
+    {
+        if (!$this->date_of_birth) {
+            return null;
+        }
+
+        return $this->date_of_birth->diffInYears(now());
     }
 
     /**
@@ -255,7 +277,63 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function updateLastLogin(): void
     {
-        $this->update(['last_login_at' => now()]);
+        $this->update([
+            'last_login_at' => now(),
+            'last_seen_at' => now(),
+        ]);
+    }
+
+    /**
+     * Mark user as online.
+     */
+    public function markAsOnline(): void
+    {
+        $this->update([
+            'is_online' => true,
+            'last_seen_at' => now(),
+        ]);
+    }
+
+    /**
+     * Mark user as offline.
+     */
+    public function markAsOffline(): void
+    {
+        $this->update([
+            'is_online' => false,
+            'last_seen_at' => now(),
+        ]);
+    }
+
+    /**
+     * Update last seen timestamp.
+     */
+    public function updateLastSeen(): void
+    {
+        $this->update(['last_seen_at' => now()]);
+    }
+
+    /**
+     * Get formatted last seen time.
+     */
+    public function getLastSeenFormattedAttribute(): string
+    {
+        if (!$this->last_seen_at) {
+            return 'Never';
+        }
+
+        // Use absolute difference to handle past timestamps correctly
+        $diff = abs(now()->diffInMinutes($this->last_seen_at));
+
+        if ($diff < 1) {
+            return 'Just now';
+        } elseif ($diff < 60) {
+            return $diff . 'm ago';
+        } elseif ($diff < 1440) { // 24 hours
+            return abs(now()->diffInHours($this->last_seen_at)) . 'h ago';
+        } else {
+            return $this->last_seen_at->format('M j, Y');
+        }
     }
 
     public function gameInterests()
@@ -266,5 +344,21 @@ class User extends Authenticatable implements MustVerifyEmail
     public function joinedEvents()
     {
         return $this->belongsToMany(GameEvent::class, 'game_event_user')->withTimestamps();
+    }
+
+    /**
+     * Get user's skill levels for different sports
+     */
+    public function skillLevels()
+    {
+        return $this->hasMany(UserSkillLevel::class);
+    }
+
+    /**
+     * Get user's preferred facilities
+     */
+    public function preferredFacilities()
+    {
+        return $this->hasMany(UserPreferredFacility::class);
     }
 }

@@ -1,0 +1,506 @@
+
+<?php
+
+use App\Http\Controllers\AuthLoginController;
+use App\Http\Controllers\AuthRegisterController;
+use App\Http\Controllers\EmailVerificationController;
+use App\Http\Controllers\HomeController;
+use App\Http\Controllers\GameEventController;
+use App\Http\Controllers\DiscussionController;
+use App\Http\Controllers\TournamentController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\LocationController;
+use App\Http\Controllers\AddressController;
+use App\Http\Controllers\CommunityController;
+use App\Http\Controllers\ConversationController;
+use App\Http\Middleware\ApiSecurityMiddleware;
+use App\Http\Middleware\DisableCsrfForApi;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Route;
+
+// All API routes should use the 'api' middleware group to avoid CSRF protection
+Route::middleware(['api', DisableCsrfForApi::class])->group(function () {
+
+    // Public routes (no authentication required)
+    Route::post('/login', AuthLoginController::class);
+    Route::post('/register', AuthRegisterController::class);
+
+    // Address validation and autocomplete (public endpoints)
+    Route::prefix('address')->group(function () {
+        Route::get('/autocomplete', [AddressController::class, 'getAutocompleteSuggestions']);
+        Route::get('/place-details', [AddressController::class, 'getPlaceDetails']);
+        Route::get('/search-postcode', [AddressController::class, 'searchByPostcode']);
+        Route::post('/validate', [AddressController::class, 'validateAddress']);
+        Route::get('/components', [AddressController::class, 'getAddressComponents']);
+        Route::get('/nearby-places', [AddressController::class, 'getNearbyPlaces']);
+    });
+
+    // Apply security middleware to protected API routes
+    Route::middleware([ApiSecurityMiddleware::class])->group(function () {
+
+        // Game types (public endpoint for creating games)
+        Route::get('/game-types', function () {
+            return App\Models\GameType::all();
+        });
+
+        // Games endpoint (public endpoint for games)
+        Route::get('/games', function () {
+            return App\Models\Game::all();
+        });
+
+        // Sport statistics (public endpoint for sport categories)
+        Route::get('/sport-stats', function () {
+            $sportStats = App\Models\GameType::withCount(['events' => function ($query) {
+                    $query->where('starts_at', '>', now()->startOfMinute());
+                }])
+                ->get()
+                ->filter(function ($sport) {
+                    return $sport->events_count > 0;
+                })
+                ->map(function ($sport) {
+                    return [
+                        'name' => $sport->name,
+                        'count' => $sport->events_count,
+                        'color' => match (strtolower($sport->name)) {
+                            'tennis' => 'bg-sport-green',
+                            'football' => 'bg-sport-orange',
+                            'basketball' => 'bg-sport-blue',
+                            'cycling' => 'bg-sport-red',
+                            'swimming' => 'bg-primary',
+                            default => 'bg-accent',
+                        },
+                    ];
+                })
+                ->sortByDesc('count')
+                ->values();
+
+
+
+            return response()->json([
+                'success' => true,
+                'data' => $sportStats
+            ]);
+        });
+
+        // Email verification routes
+        Route::post('/email/verify', [EmailVerificationController::class, 'verify']);
+        Route::post('/email/resend', [EmailVerificationController::class, 'resend']);
+
+        // Protected routes
+        Route::middleware('auth:api')->group(function () {
+            // User management
+            Route::get('/user', function (Request $request) {
+                return response()->json([
+                    'user' => [
+                        'id' => $request->user()->id,
+                        'first_name' => $request->user()->first_name,
+                        'last_name' => $request->user()->last_name,
+                        'email' => $request->user()->email,
+                        'email_verified_at' => $request->user()->email_verified_at,
+                    ]
+                ]);
+            });
+
+            // Get all users for testing
+            Route::get('/users', function (Request $request) {
+                $users = App\Models\User::select('id', 'first_name', 'last_name', 'email', 'profile_picture', 'location', 'is_online', 'last_seen_at')
+                    ->where('is_active', true)
+                    ->limit(10)
+                    ->get()
+                    ->map(function ($user) {
+                        return [
+                            'id' => $user->id,
+                            'first_name' => $user->first_name,
+                            'last_name' => $user->last_name,
+                            'full_name' => $user->full_name,
+                            'profile_picture' => $user->profile_picture,
+                            'location' => $user->location,
+                            'is_online' => $user->is_online,
+                            'last_seen_at' => $user->last_seen_at,
+                            'last_seen_formatted' => $user->last_seen_formatted,
+                        ];
+                    });
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $users
+                ]);
+            });
+
+            // Online status endpoints
+            Route::post('/user/online', function (Request $request) {
+                $user = $request->user();
+                $user->markAsOnline();
+                return response()->json(['success' => true, 'message' => 'Marked as online']);
+            });
+
+            Route::post('/user/offline', function (Request $request) {
+                $user = $request->user();
+                $user->markAsOffline();
+                return response()->json(['success' => true, 'message' => 'Marked as offline']);
+            });
+
+            Route::post('/user/ping', function (Request $request) {
+                $user = $request->user();
+                $user->updateLastSeen();
+                return response()->json(['success' => true, 'message' => 'Ping updated']);
+            });
+
+            // Profile management
+            Route::get('/profile', [ProfileController::class, 'show']);
+            Route::post('/profile', [ProfileController::class, 'update']);
+
+
+
+            Route::post('/logout', function (Request $request) {
+                $request->user()->tokens()->delete();
+                return response()->json(['message' => 'Logged out successfully']);
+            });
+
+            // Home and dashboard
+            Route::get('/home', HomeController::class);
+
+            // Game events
+            Route::get('/events', [GameEventController::class, 'index']);
+            Route::post('/events', [GameEventController::class, 'store']);
+            Route::get('/events/stats', [GameEventController::class, 'stats']);
+            Route::get('/events/{event}', [GameEventController::class, 'show']);
+            Route::put('/events/{event}', [GameEventController::class, 'update']);
+            Route::delete('/events/{event}', [GameEventController::class, 'destroy']);
+            Route::post('/events/{event}/join', [GameEventController::class, 'join']);
+
+            // Location-based features
+            Route::prefix('location')->group(function () {
+                Route::post('/update', [LocationController::class, 'updateLocation']);
+                Route::post('/validate', [LocationController::class, 'validateAddress']);
+                Route::get('/suggestions', [LocationController::class, 'getLocationSuggestions']);
+                Route::get('/place-details', [LocationController::class, 'getPlaceDetails']);
+                Route::get('/search-postcode', [LocationController::class, 'searchByPostcode']);
+                Route::get('/nearby-users', [LocationController::class, 'getNearbyUsers']);
+                Route::get('/community-users', [LocationController::class, 'getCommunityUsers']);
+                Route::get('/nearby-events', [LocationController::class, 'getNearbyGameEvents']);
+                Route::get('/community-events', [LocationController::class, 'getCommunityGameEvents']);
+                Route::get('/community-statistics', [LocationController::class, 'getCommunityStatistics']);
+                Route::get('/search-communities', [LocationController::class, 'searchCommunities']);
+                Route::get('/popular-communities', [LocationController::class, 'getPopularCommunities']);
+                Route::get('/community-recommendations', [LocationController::class, 'getCommunityRecommendations']);
+                Route::get('/recommendations', [LocationController::class, 'getLocationBasedRecommendations']);
+            });
+
+            // Community management
+            Route::prefix('communities')->group(function () {
+                Route::get('/my-communities', [CommunityController::class, 'getUserCommunities']);
+                Route::get('/all', [CommunityController::class, 'getAllCommunities']);
+                Route::get('/primary', [CommunityController::class, 'getPrimaryCommunity']);
+                Route::get('/{communityId}/stats', [CommunityController::class, 'getCommunityStats']);
+            });
+            Route::delete('/events/{event}/leave', [GameEventController::class, 'leave']);
+
+            // Discussions
+            Route::get('/discussions', [DiscussionController::class, 'index']);
+            Route::post('/discussions', [DiscussionController::class, 'store']);
+            Route::get('/discussions/{discussion}', [DiscussionController::class, 'show']);
+            Route::put('/discussions/{discussion}', [DiscussionController::class, 'update']);
+            Route::delete('/discussions/{discussion}', [DiscussionController::class, 'destroy']);
+
+            // Comments
+            Route::post('/discussions/{discussion}/comments', [DiscussionController::class, 'storeComment']);
+            Route::get('/discussions/{discussion}/comments', [DiscussionController::class, 'showComments']);
+
+            // Likes
+            Route::post('/discussions/{discussion}/likes', [DiscussionController::class, 'like']);
+            Route::delete('/discussions/{discussion}/likes', [DiscussionController::class, 'unlike']);
+
+            // Trending topics
+            Route::get('/discussions/trending/topics', [DiscussionController::class, 'trendingTopics']);
+
+            // Tournaments
+            Route::get('/tournaments', [TournamentController::class, 'index']);
+            Route::post('/tournaments', [TournamentController::class, 'store']);
+            Route::get('/tournaments/upcoming-matches', [TournamentController::class, 'upcomingMatches']);
+            Route::get('/tournaments/{tournament}', [TournamentController::class, 'show']);
+            Route::put('/tournaments/{tournament}', [TournamentController::class, 'update']);
+            Route::post('/tournaments/{tournament}/register', [TournamentController::class, 'register']);
+            Route::delete('/tournaments/{tournament}/unregister', [TournamentController::class, 'unregister']);
+            Route::post('/tournaments/{tournament}/approve', [TournamentController::class, 'approve']);
+            Route::post('/tournaments/{tournament}/reject', [TournamentController::class, 'reject']);
+
+                        // Messaging
+            Route::prefix('conversations')->group(function () {
+                Route::get('/', [ConversationController::class, 'index']);
+                Route::post('/', [ConversationController::class, 'store']);
+                Route::get('/{conversation}/messages', [ConversationController::class, 'getMessages']);
+                Route::post('/{conversation}/messages', [ConversationController::class, 'sendMessage']);
+            });
+                    $user = $request->user();
+
+                    // Get conversations where the user is a participant
+                    $conversations = \App\Models\Conversation::whereHas('participants', function ($query) use ($user) {
+                        $query->where('user_id', $user->id);
+                    })->with(['participants.user', 'lastMessage'])->get()->map(function ($conversation) use ($user) {
+                        // Get other participants (excluding current user)
+                        $otherParticipants = $conversation->participants->where('user_id', '!=', $user->id);
+
+                        // Determine conversation name and type
+                        if ($conversation->type === 'direct' && $otherParticipants->count() === 1) {
+                            $otherUser = $otherParticipants->first()->user;
+
+                            // Use direct database query to get fresh data
+                            $freshUser = \Illuminate\Support\Facades\DB::table('users')->where('id', $otherUser->id)->first();
+
+                            $name = $freshUser->first_name . ' ' . $freshUser->last_name;
+                            $avatar = $freshUser->profile_picture;
+
+                            // Calculate online status manually
+                            $isOnline = (bool) $freshUser->is_online;
+                            $lastSeenAt = $freshUser->last_seen_at;
+
+                            // Calculate last seen formatted manually
+                            if (!$lastSeenAt) {
+                                $lastSeenFormatted = 'Never';
+                            } else {
+                                $lastSeenCarbon = \Carbon\Carbon::parse($lastSeenAt);
+                                $diffMinutes = abs(now()->diffInMinutes($lastSeenCarbon));
+
+                                if ($diffMinutes < 1) {
+                                    $lastSeenFormatted = 'Just now';
+                                } elseif ($diffMinutes < 60) {
+                                    $lastSeenFormatted = $diffMinutes . 'm ago';
+                                } elseif ($diffMinutes < 1440) {
+                                    $diffHours = abs(now()->diffInHours($lastSeenCarbon));
+                                    $lastSeenFormatted = $diffHours . 'h ago';
+                                } else {
+                                    $lastSeenFormatted = $lastSeenCarbon->format('M j, Y');
+                                }
+                            }
+
+                            // Debug logging for Sarah
+                            if ($freshUser->id == 2) {
+                                \Illuminate\Support\Facades\Log::info("Sarah direct DB - ID: {$freshUser->id}, Online: " . ($isOnline ? 'true' : 'false') . ", Last seen: {$lastSeenFormatted}");
+                                \Illuminate\Support\Facades\Log::info("Sarah raw DB - is_online: {$freshUser->is_online}, last_seen_at: {$freshUser->last_seen_at}");
+                            }
+
+                            $participantOnlineStatus = $isOnline;
+                            $participantLastSeen = $lastSeenFormatted;
+                        } else {
+                            $name = $conversation->name ?: 'Group Chat';
+                            $avatar = null;
+                            $participantOnlineStatus = null;
+                            $participantLastSeen = null;
+                        }
+
+                        return [
+                            'id' => $conversation->id,
+                            'type' => $conversation->type,
+                            'name' => $name,
+                            'avatar' => $avatar,
+                            'last_message' => $conversation->lastMessage ? [
+                                'content' => $conversation->lastMessage->content,
+                                'time' => $conversation->lastMessage->created_at->diffForHumans()
+                            ] : null,
+                            'unread_count' => $conversation->messages()->where('user_id', '!=', $user->id)->where('read_at', null)->count(),
+                            'participants_count' => $conversation->participants->count(),
+                            'participant_online_status' => $participantOnlineStatus,
+                            'participant_last_seen' => $participantLastSeen,
+                        ];
+                    });
+
+                    return response()->json([
+                        'success' => true,
+                        'data' => $conversations
+                    ]);
+                });
+
+                Route::post('/', function (Request $request) {
+                    $user = $request->user();
+                    $data = $request->validate([
+                        'type' => 'required|in:direct,group,tournament,community',
+                        'participant_ids' => 'required_if:type,direct,group|array',
+                        'participant_ids.*' => 'exists:users,id',
+                        'name' => 'required_if:type,group,tournament,community|string|max:255',
+                        'context_id' => 'required_if:type,tournament,community|integer'
+                    ]);
+
+                    // For direct conversations, ensure only 2 participants
+                    if ($data['type'] === 'direct' && count($data['participant_ids']) !== 1) {
+                        return response()->json(['success' => false, 'message' => 'Direct conversations must have exactly 2 participants'], 400);
+                    }
+
+                    // Check if direct conversation already exists
+                    if ($data['type'] === 'direct') {
+                        $existingConversation = \App\Models\Conversation::where('type', 'direct')
+                            ->whereHas('participants', function ($query) use ($user) {
+                                $query->where('user_id', $user->id);
+                            })
+                            ->whereHas('participants', function ($query) use ($data) {
+                                $query->where('user_id', $data['participant_ids'][0]);
+                            })
+                            ->first();
+
+                        if ($existingConversation) {
+                            return response()->json([
+                                'success' => true,
+                                'data' => [
+                                    'id' => $existingConversation->id,
+                                    'type' => $existingConversation->type,
+                                    'name' => \App\Models\User::find($data['participant_ids'][0])->full_name,
+                                    'message' => 'Conversation already exists'
+                                ]
+                            ]);
+                        }
+                    }
+
+                    $conversation = \App\Models\Conversation::create([
+                        'type' => $data['type'],
+                        'name' => $data['name'] ?? null,
+                        'context_id' => $data['context_id'] ?? null
+                    ]);
+
+                    // Add participants
+                    $participantIds = array_merge([$user->id], $data['participant_ids'] ?? []);
+                    foreach ($participantIds as $participantId) {
+                        $conversation->participants()->create(['user_id' => $participantId]);
+                    }
+
+                    return response()->json([
+                        'success' => true,
+                        'data' => [
+                            'id' => $conversation->id,
+                            'type' => $conversation->type,
+                            'name' => $conversation->name ?: \App\Models\User::find($data['participant_ids'][0])->full_name,
+                            'participants_count' => count($participantIds)
+                        ]
+                    ]);
+                });
+
+                Route::get('/{conversation}/messages', function (Request $request, $conversationId) {
+                    $user = $request->user();
+                    $page = $request->get('page', 1);
+                    $perPage = $request->get('per_page', 50);
+
+                    $conversation = \App\Models\Conversation::whereHas('participants', function ($query) use ($user) {
+                        $query->where('user_id', $user->id);
+                    })->findOrFail($conversationId);
+
+                    $messages = $conversation->messages()
+                        ->with('user')
+                        ->orderBy('created_at', 'desc')
+                        ->paginate($perPage, ['*'], 'page', $page);
+
+                    // Mark messages as read
+                    $conversation->messages()
+                        ->where('user_id', '!=', $user->id)
+                        ->where('read_at', null)
+                        ->update(['read_at' => now()]);
+
+                    $formattedMessages = $messages->getCollection()->map(function ($message) use ($user) {
+                        return [
+                            'id' => $message->id,
+                            'sender' => [
+                                'id' => $message->user->id,
+                                'name' => $message->user->full_name,
+                                'avatar' => $message->user->profile_picture
+                            ],
+                            'content' => $message->content,
+                            'created_at' => $message->created_at->toISOString(),
+                            'created_at_relative' => $message->created_at->diffForHumans(),
+                            'is_own' => $message->user_id === $user->id
+                        ];
+                    })->reverse()->values();
+
+                    return response()->json([
+                        'success' => true,
+                        'data' => $formattedMessages,
+                        'pagination' => [
+                            'current_page' => $messages->currentPage(),
+                            'last_page' => $messages->lastPage(),
+                            'per_page' => $messages->perPage(),
+                            'total' => $messages->total()
+                        ]
+                    ]);
+                });
+
+                Route::post('/{conversation}/messages', function (Request $request, $conversationId) {
+                    $user = $request->user();
+                    $data = $request->validate([
+                        'content' => 'required|string|max:1000'
+                    ]);
+
+                    $conversation = \App\Models\Conversation::whereHas('participants', function ($query) use ($user) {
+                        $query->where('user_id', $user->id);
+                    })->findOrFail($conversationId);
+
+                    $message = $conversation->messages()->create([
+                        'user_id' => $user->id,
+                        'content' => $data['content']
+                    ]);
+
+                    // Update conversation's last message
+                    $conversation->update(['last_message_id' => $message->id]);
+
+                    return response()->json([
+                        'success' => true,
+                        'data' => [
+                            'id' => $message->id,
+                            'sender' => [
+                                'id' => $user->id,
+                                'name' => $user->full_name,
+                                'avatar' => $user->profile_picture
+                            ],
+                            'content' => $message->content,
+                            'created_at' => $message->created_at->toISOString(),
+                            'created_at_relative' => $message->created_at->diffForHumans(),
+                            'is_own' => true
+                        ]
+                    ]);
+                });
+            });
+        });
+    });
+});
+
+
+Route::get("/test", function () { return response()->json(["message" => "Fresh Laravel API is working!"]); });
+
+Route::get("/debug-sarah", function () {
+    $sarah = App\Models\User::find(2);
+    $john = App\Models\User::where('email', 'john@example.com')->first();
+
+    // Test the exact logic from conversations route
+    $conversation = \App\Models\Conversation::whereHas('participants', function($q) use ($john) {
+        $q->where('user_id', $john->id);
+    })->whereHas('participants', function($q) use ($sarah) {
+        $q->where('user_id', $sarah->id);
+    })->first();
+
+    if ($conversation) {
+        $otherParticipants = $conversation->participants->where('user_id', '!=', $john->id);
+        $otherUser = $otherParticipants->first()->user;
+        $freshUser = \App\Models\User::find($otherUser->id);
+
+        return response()->json([
+            'sarah_direct' => [
+                'id' => $sarah->id,
+                'name' => $sarah->full_name,
+                'is_online' => $sarah->is_online,
+                'last_seen_at' => $sarah->last_seen_at,
+                'last_seen_formatted' => $sarah->last_seen_formatted,
+            ],
+            'conversation_logic' => [
+                'conversation_id' => $conversation->id,
+                'other_user_id' => $otherUser->id,
+                'other_user_name' => $freshUser->full_name,
+                'other_user_online' => $freshUser->is_online,
+                'other_user_last_seen' => $freshUser->last_seen_formatted,
+            ],
+            'database_raw' => [
+                'sarah_is_online' => $sarah->getRawOriginal('is_online'),
+                'sarah_last_seen_at' => $sarah->getRawOriginal('last_seen_at'),
+            ]
+        ]);
+    }
+
+    return response()->json(['error' => 'No conversation found between John and Sarah']);
+});

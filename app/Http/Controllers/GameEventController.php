@@ -43,18 +43,24 @@ class GameEventController extends Controller
             $user = $request->user();
 
             $query = GameEvent::with(['gameType', 'organiser', 'participants', 'community'])
-                ->where('starts_at', '>', now()->startOfMinute());
+                ->where('starts_at', '>', now()->startOfMinute())
+                ->whereHas('gameType', function($q) {
+                    $q->whereNotNull('name')->where('name', '!=', '');
+                });
 
             // If user has location, calculate distance and sort by distance
             if ($user && $user->latitude && $user->longitude) {
                 $query->selectRaw("
                     game_events.*,
-                    (6371 * acos(cos(radians(?)) * cos(radians(latitude)) *
-                    cos(radians(longitude) - radians(?)) + sin(radians(?)) *
-                    sin(radians(latitude)))) AS distance
+                    CASE
+                        WHEN latitude IS NOT NULL AND longitude IS NOT NULL
+                        THEN (6371 * acos(cos(radians(?)) * cos(radians(latitude)) *
+                        cos(radians(longitude) - radians(?)) + sin(radians(?)) *
+                        sin(radians(latitude))))
+                        ELSE NULL
+                    END AS distance
                 ", [$user->latitude, $user->longitude, $user->latitude])
-                ->whereNotNull('latitude')
-                ->whereNotNull('longitude')
+                ->orderByRaw('CASE WHEN distance IS NOT NULL THEN 0 ELSE 1 END')
                 ->orderBy('distance', 'asc')
                 ->orderBy('starts_at', 'asc');
             } else {
@@ -130,8 +136,8 @@ class GameEventController extends Controller
 
                     return [
                         'id' => $event->id,
-                        'title' => $event->gameType->name . ' Game',
-                        'sport' => $event->gameType->name,
+                        'title' => ($event->gameType && $event->gameType->name) ? $event->gameType->name . ' Game' : 'Game Event',
+                        'sport' => ($event->gameType && $event->gameType->name) ? $event->gameType->name : 'Unknown Sport',
                         'location' => $event->location,
                         'address' => $event->address,
                         'city' => $event->city,
@@ -263,6 +269,18 @@ class GameEventController extends Controller
 
             // Auto-join the organiser
             $event->participants()->attach($request->user()->id, ['is_waiting' => false]);
+
+            // Auto-create community conversation if community exists
+            if ($communityId) {
+                $conversation = \App\Models\Conversation::create([
+                    'type' => 'community',
+                    'name' => $communityName . ' - Community Chat',
+                    'context_id' => $communityId,
+                ]);
+
+                // Add the organiser to the conversation
+                $conversation->participants()->attach($request->user()->id);
+            }
 
             DB::commit();
 
@@ -461,6 +479,18 @@ class GameEventController extends Controller
                 }
                 // Add to waiting list
                 $event->participants()->attach($user->id, ['is_waiting' => true]);
+
+                // Auto-add user to community conversation if event has community
+                if ($event->community_id) {
+                    $communityConversation = \App\Models\Conversation::where('type', 'community')
+                        ->where('context_id', $event->community_id)
+                        ->first();
+
+                    if ($communityConversation && !$communityConversation->participants()->where('users.id', $user->id)->exists()) {
+                        $communityConversation->participants()->attach($user->id);
+                    }
+                }
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Added to waiting list'
@@ -468,6 +498,17 @@ class GameEventController extends Controller
             }
 
             $event->participants()->attach($user->id, ['is_waiting' => false]);
+
+            // Auto-add user to community conversation if event has community
+            if ($event->community_id) {
+                $communityConversation = \App\Models\Conversation::where('type', 'community')
+                    ->where('context_id', $event->community_id)
+                    ->first();
+
+                if ($communityConversation && !$communityConversation->participants()->where('users.id', $user->id)->exists()) {
+                    $communityConversation->participants()->attach($user->id);
+                }
+            }
 
             return response()->json([
                 'success' => true,

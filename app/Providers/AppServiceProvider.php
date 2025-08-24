@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Services\GoogleMapsService;
+use App\Services\LocationService;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -11,7 +13,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(GoogleMapsService::class, function ($app) {
+            return new GoogleMapsService();
+        });
+
+        $this->app->singleton(LocationService::class, function ($app) {
+            return new LocationService($app->make(GoogleMapsService::class));
+        });
     }
 
     /**

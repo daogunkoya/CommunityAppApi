@@ -6,6 +6,7 @@ use App\Models\Discussion;
 use App\Models\Comment;
 use App\Models\Like;
 use App\Models\User;
+use App\Models\TypingIndicator;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
@@ -77,7 +78,7 @@ class DiscussionController extends Controller
                         'boxing' => 'Boxing',
                         'martial-arts' => 'Martial Arts',
                     ];
-                    
+
                     $dbGameType = $gameTypeMap[$validated['game_type']] ?? $validated['game_type'];
                     Log::info('Game type mapping:', ['frontend' => $validated['game_type'], 'database' => $dbGameType]);
                     $q->where('name', $dbGameType);
@@ -543,6 +544,112 @@ class DiscussionController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch trending topics',
+            ], 500);
+        }
+    }
+
+    /**
+     * Start typing indicator for discussion comments
+     */
+    public function startTyping(Request $request, Discussion $discussion): JsonResponse
+    {
+        Log::info('Discussion startTyping method called', [
+            'discussion_id' => $discussion->id,
+            'discussion_title' => $discussion->title
+        ]);
+
+        try {
+            $user = $request->user();
+
+            Log::info('Discussion typing start request', [
+                'user_id' => $user->id,
+                'user_name' => $user->full_name,
+                'discussion_id' => $discussion->id,
+                'discussion_title' => $discussion->title
+            ]);
+
+            // Start typing indicator using discussion ID as context
+            TypingIndicator::startTyping($user->id, $discussion->id, 'discussion');
+
+            Log::info('Discussion typing indicator started successfully');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Typing indicator started'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Discussion typing start error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to start typing indicator',
+            ], 500);
+        }
+    }
+
+    /**
+     * Stop typing indicator for discussion comments
+     */
+    public function stopTyping(Request $request, Discussion $discussion): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            // Stop typing indicator
+            TypingIndicator::stopTyping($user->id, $discussion->id, 'discussion');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Typing indicator stopped'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Discussion typing stop error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to stop typing indicator',
+            ], 500);
+        }
+    }
+
+    /**
+     * Get active typing users for discussion comments
+     */
+    public function getTypingUsers(Request $request, Discussion $discussion): JsonResponse
+    {
+        Log::info('Discussion getTypingUsers method called', [
+            'discussion_id' => $discussion->id,
+            'discussion_title' => $discussion->title
+        ]);
+
+        try {
+            $user = $request->user();
+
+            Log::info('Discussion typing users request', [
+                'user_id' => $user->id,
+                'discussion_id' => $discussion->id
+            ]);
+
+            // Get active typing users (excluding current user)
+            $typingUsers = TypingIndicator::getActiveTypingUsers($discussion->id, 'discussion')
+                ->filter(function ($typingUser) use ($user) {
+                    return $typingUser['user_id'] !== $user->id;
+                })
+                ->values();
+
+            Log::info('Discussion typing users response', [
+                'discussion_id' => $discussion->id,
+                'typing_users_count' => $typingUsers->count(),
+                'typing_users' => $typingUsers->toArray()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $typingUsers
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Discussion typing users error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch typing users',
             ], 500);
         }
     }
