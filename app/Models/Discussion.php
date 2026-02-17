@@ -18,7 +18,10 @@ class Discussion extends Model
         'title',
         'body',
         'user_id',
-        'game_type_id'
+        'game_type_id',
+        'game_event_id',
+        'is_featured',
+        'view_count'
     ];
 
     public function user(): BelongsTo
@@ -29,6 +32,11 @@ class Discussion extends Model
     public function gameType(): BelongsTo
     {
         return $this->belongsTo(GameType::class);
+    }
+
+    public function gameEvent(): BelongsTo
+    {
+        return $this->belongsTo(GameEvent::class);
     }
 
     public function comments(): HasMany

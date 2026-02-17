@@ -22,6 +22,9 @@ class UpdateProfileRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'first_name' => 'sometimes|string|max:255',
+            'last_name' => 'sometimes|string|max:255',
+            'bio' => 'sometimes|string|max:1000',
             'email' => 'sometimes|email|unique:users,email,' . $this->user()->id,
             'location' => 'sometimes|string|max:255',
             'phone' => 'sometimes|string|max:20',

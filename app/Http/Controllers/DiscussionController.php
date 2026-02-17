@@ -7,6 +7,7 @@ use App\Models\Comment;
 use App\Models\Like;
 use App\Models\User;
 use App\Models\TypingIndicator;
+use App\Models\GameType;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
@@ -29,9 +30,11 @@ class DiscussionController extends Controller
                 'sort' => 'nullable|in:latest,popular,trending',
                 'per_page' => 'nullable|integer|min:1|max:50',
                 'game_type' => 'nullable|string|max:255',
+                'game_event_id' => 'nullable|integer',
                 'my_discussions_only' => 'nullable|string|in:true,false,0,1',
                 'date_from' => 'nullable|date',
                 'date_to' => 'nullable|date',
+                'filter_by_interests' => 'nullable|string|in:true,false,0,1', // New parameter
             ]);
 
             $perPage = $validated['per_page'] ?? 15;
@@ -56,9 +59,33 @@ class DiscussionController extends Controller
                 });
             }
 
-            // Apply game type filter
+            // Apply user interest filtering (DEFAULT BEHAVIOR)
+            // Only show discussions for user's interests unless explicitly overridden
+            $shouldFilterByInterests = !isset($validated['filter_by_interests']) ||
+                                     (isset($validated['filter_by_interests']) &&
+                                      in_array($validated['filter_by_interests'], ['true', '1'], true));
+
+            if ($shouldFilterByInterests) {
+                // Get user's sport interests
+                $userInterests = $user->gameInterests()->pluck('game_type_id')->toArray();
+
+                if (!empty($userInterests)) {
+                    Log::info('Filtering discussions by user interests (DEFAULT):', [
+                        'user_id' => $user->id,
+                        'interests' => $userInterests
+                    ]);
+
+                    $query->whereIn('game_type_id', $userInterests);
+                } else {
+                    Log::info('User has no interests set, showing all discussions');
+                }
+            } else {
+                Log::info('User requested to see all discussions (override interest filtering)');
+            }
+
+            // Apply manual game type filter (overrides interest filtering)
             if (isset($validated['game_type'])) {
-                Log::info('Game type filter applied:', ['received' => $validated['game_type']]);
+                Log::info('Manual game type filter applied:', ['received' => $validated['game_type']]);
                 $query->whereHas('gameType', function ($q) use ($validated) {
                     // Convert frontend values to database format
                     $gameTypeMap = [
@@ -83,6 +110,12 @@ class DiscussionController extends Controller
                     Log::info('Game type mapping:', ['frontend' => $validated['game_type'], 'database' => $dbGameType]);
                     $q->where('name', $dbGameType);
                 });
+            }
+
+            // Apply game event filter - show only discussions for specific game event
+            if (isset($validated['game_event_id'])) {
+                Log::info('Filtering by game_event_id:', ['game_event_id' => $validated['game_event_id']]);
+                $query->where('game_event_id', $validated['game_event_id']);
             }
 
             // Apply my discussions filter
@@ -118,6 +151,11 @@ class DiscussionController extends Controller
             }
 
             $discussions = $query->paginate($perPage);
+
+            // Get user interests for response metadata
+            $userInterests = $user->gameInterests()->get();
+            $interestNames = $userInterests->pluck('name')->toArray();
+            $hasInterests = !empty($userInterests);
 
             return response()->json([
                 'success' => true,
@@ -157,6 +195,17 @@ class DiscussionController extends Controller
                     'per_page' => $discussions->perPage(),
                     'total' => $discussions->total(),
                 ],
+                'meta' => [
+                    'filtered_by_interests' => $shouldFilterByInterests && $hasInterests,
+                    'user_interests' => [
+                        'names' => $interestNames,
+                        'count' => count($interestNames),
+                        'has_interests' => $hasInterests,
+                    ],
+                    'message' => $hasInterests
+                        ? "Showing discussions for your interests: " . implode(', ', $interestNames)
+                        : "Showing all discussions. Set your sport interests for personalized content.",
+                ],
             ]);
 
         } catch (ValidationException $e) {
@@ -184,6 +233,7 @@ class DiscussionController extends Controller
                 'title' => 'required|string|max:255',
                 'body' => 'required|string|max:5000',
                 'game_type_id' => 'nullable|exists:game_types,id',
+                'game_event_id' => 'nullable|exists:game_events,id',
             ]);
 
             DB::beginTransaction();
@@ -511,6 +561,58 @@ class DiscussionController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to unlike discussion',
+            ], 500);
+        }
+    }
+
+    /**
+     * Get available game types for discussions (user's interests only)
+     */
+    public function availableGameTypes(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            // Get user's sport interests
+            $userInterests = $user->gameInterests()->get();
+
+            if ($userInterests->isEmpty()) {
+                // New users (e.g. just signed up or no interests): return all game types
+                // so they can create games, use filters, and set interests from profile
+                $allTypes = GameType::orderBy('name')->get(['id', 'name', 'color', 'icon_path']);
+                return response()->json([
+                    'success' => true,
+                    'data' => $allTypes->map(fn ($gt) => [
+                        'id' => $gt->id,
+                        'name' => $gt->name,
+                        'color' => $gt->color,
+                        'icon_path' => $gt->icon_path,
+                    ])->values()->all(),
+                    'message' => 'All game types (set your interests in profile for personalized lists)',
+                ]);
+            }
+
+            // Return the user's interests as available game types
+            $gameTypes = $userInterests->map(function ($interest) {
+                return [
+                    'id' => $interest->id,
+                    'name' => $interest->name,
+                    'color' => $interest->color,
+                    'icon_path' => $interest->icon_path,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $gameTypes,
+                'message' => 'Available game types based on your interests'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Available game types error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch available game types',
             ], 500);
         }
     }

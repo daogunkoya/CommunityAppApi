@@ -36,7 +36,10 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         $request->user()->tokens()->delete();
-        return response()->json(['message' => 'Logged out successfully']);
+        return response()->json([
+            'success' => true,
+            'message' => 'Logged out successfully'
+        ]);
     }
 
     /**
@@ -44,13 +47,17 @@ class AuthController extends Controller
      */
     public function me(Request $request)
     {
+        $user = $request->user();
         return response()->json([
-            'user' => [
-                'id' => $request->user()->id,
-                'first_name' => $request->user()->first_name,
-                'last_name' => $request->user()->last_name,
-                'email' => $request->user()->email,
-                'email_verified_at' => $request->user()->email_verified_at,
+            'success' => true,
+            'data' => [
+                'user' => [
+                    'id' => $user->id,
+                    'first_name' => $user->first_name,
+                    'last_name' => $user->last_name,
+                    'email' => $user->email,
+                    'email_verified_at' => $user->email_verified_at,
+                ]
             ]
         ]);
     }

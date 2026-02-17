@@ -1,0 +1,1549 @@
+{
+  "info": {
+    "name": "CommunitySport API Collection",
+    "description": "Complete API collection for CommunitySport application",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
+            }
+          }
+        },
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\",\n  \"date_of_birth\": \"1990-01-01\",\n  \"location\": \"London, UK\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/registration/register",
+              "host": ["{{base_url}}"],
+              "path": ["registration", "register"]
+            }
+          }
+        },
+        {
+          "name": "Get Sports",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/registration/sports",
+              "host": ["{{base_url}}"],
+              "path": ["registration", "sports"]
+            }
+          }
+        },
+        {
+          "name": "Search Facilities",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"football field\",\n  \"location\": \"London\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/registration/facilities/search",
+              "host": ["{{base_url}}"],
+              "path": ["registration", "facilities", "search"]
+            }
+          }
+        },
+        {
+          "name": "Unified Auth",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"email\",\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth",
+              "host": ["{{base_url}}"],
+              "path": ["auth"]
+            }
+          }
+        },
+        {
+          "name": "Google Auth Callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"access_token\": \"google_access_token_here\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/google/callback",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "google", "callback"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public APIs",
+      "item": [
+        {
+          "name": "Test API",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/test",
+              "host": ["{{base_url}}"],
+              "path": ["test"]
+            }
+          }
+        },
+        {
+          "name": "Get Game Types",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/game-types",
+              "host": ["{{base_url}}"],
+              "path": ["game-types"]
+            }
+          }
+        },
+        {
+          "name": "Get Games",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/games",
+              "host": ["{{base_url}}"],
+              "path": ["games"]
+            }
+          }
+        },
+        {
+          "name": "Sport Stats",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/sport-stats",
+              "host": ["{{base_url}}"],
+              "path": ["sport-stats"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Location Services",
+      "item": [
+        {
+          "name": "Address Autocomplete",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/address/autocomplete?query=London",
+              "host": ["{{base_url}}"],
+              "path": ["address", "autocomplete"],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "London"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Place Details",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/address/place-details?place_id=ChIJdd4hrwug2EcRmSrV3Vo6llI",
+              "host": ["{{base_url}}"],
+              "path": ["address", "place-details"],
+              "query": [
+                {
+                  "key": "place_id",
+                  "value": "ChIJdd4hrwug2EcRmSrV3Vo6llI"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search by Postcode",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/address/search-postcode?postcode=SW1A1AA",
+              "host": ["{{base_url}}"],
+              "path": ["address", "search-postcode"],
+              "query": [
+                {
+                  "key": "postcode",
+                  "value": "SW1A1AA"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Validate Address",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"address\": \"10 Downing Street, London, UK\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/address/validate",
+              "host": ["{{base_url}}"],
+              "path": ["address", "validate"]
+            }
+          }
+        },
+        {
+          "name": "Get Address Components",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/address/components?address=London",
+              "host": ["{{base_url}}"],
+              "path": ["address", "components"],
+              "query": [
+                {
+                  "key": "address",
+                  "value": "London"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Nearby Places",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/address/nearby-places?lat=51.5074&lng=-0.1278&radius=1000",
+              "host": ["{{base_url}}"],
+              "path": ["address", "nearby-places"],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "51.5074"
+                },
+                {
+                  "key": "lng",
+                  "value": "-0.1278"
+                },
+                {
+                  "key": "radius",
+                  "value": "1000"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Protected APIs",
+      "item": [
+        {
+          "name": "User Management",
+          "item": [
+            {
+              "name": "Get Users",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/users",
+                  "host": ["{{base_url}}"],
+                  "path": ["users"]
+                }
+              }
+            },
+            {
+              "name": "Mark User Online",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/user/online",
+                  "host": ["{{base_url}}"],
+                  "path": ["user", "online"]
+                }
+              }
+            },
+            {
+              "name": "Mark User Offline",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/user/offline",
+                  "host": ["{{base_url}}"],
+                  "path": ["user", "offline"]
+                }
+              }
+            },
+            {
+              "name": "User Ping",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/user/ping",
+                  "host": ["{{base_url}}"],
+                  "path": ["user", "ping"]
+                }
+              }
+            },
+            {
+              "name": "Get Profile",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/profile",
+                  "host": ["{{base_url}}"],
+                  "path": ["profile"]
+                }
+              }
+            },
+            {
+              "name": "Update Profile",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"bio\": \"Updated bio\",\n  \"location\": \"Updated location\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/profile",
+                  "host": ["{{base_url}}"],
+                  "path": ["profile"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Dashboard",
+          "item": [
+            {
+              "name": "Get Home Data",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/home",
+                  "host": ["{{base_url}}"],
+                  "path": ["home"]
+                }
+              }
+            },
+            {
+              "name": "Get Dashboard Stats",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/dashboard/stats",
+                  "host": ["{{base_url}}"],
+                  "path": ["dashboard", "stats"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Game Events",
+          "item": [
+            {
+              "name": "Get Events",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/events",
+                  "host": ["{{base_url}}"],
+                  "path": ["events"]
+                }
+              }
+            },
+            {
+              "name": "Create Event",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Football Match\",\n  \"description\": \"Weekly football game\",\n  \"game_type_id\": 1,\n  \"location\": \"Hyde Park, London\",\n  \"starts_at\": \"2024-12-25 10:00:00\",\n  \"ends_at\": \"2024-12-25 12:00:00\",\n  \"max_participants\": 22\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/events",
+                  "host": ["{{base_url}}"],
+                  "path": ["events"]
+                }
+              }
+            },
+            {
+              "name": "Get Event Stats",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/events/stats",
+                  "host": ["{{base_url}}"],
+                  "path": ["events", "stats"]
+                }
+              }
+            },
+            {
+              "name": "Get Event Details",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/events/1",
+                  "host": ["{{base_url}}"],
+                  "path": ["events", "1"]
+                }
+              }
+            },
+            {
+              "name": "Update Event",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Updated Football Match\",\n  \"description\": \"Updated description\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/events/1",
+                  "host": ["{{base_url}}"],
+                  "path": ["events", "1"]
+                }
+              }
+            },
+            {
+              "name": "Delete Event",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/events/1",
+                  "host": ["{{base_url}}"],
+                  "path": ["events", "1"]
+                }
+              }
+            },
+            {
+              "name": "Join Event",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/events/1/join",
+                  "host": ["{{base_url}}"],
+                  "path": ["events", "1", "join"]
+                }
+              }
+            },
+            {
+              "name": "Leave Event",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/events/1/leave",
+                  "host": ["{{base_url}}"],
+                  "path": ["events", "1", "leave"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Community Management",
+          "item": [
+            {
+              "name": "Get User Communities",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/communities/my-communities",
+                  "host": ["{{base_url}}"],
+                  "path": ["communities", "my-communities"]
+                }
+              }
+            },
+            {
+              "name": "Get All Communities",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/communities/all",
+                  "host": ["{{base_url}}"],
+                  "path": ["communities", "all"]
+                }
+              }
+            },
+            {
+              "name": "Get Primary Community",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/communities/primary",
+                  "host": ["{{base_url}}"],
+                  "path": ["communities", "primary"]
+                }
+              }
+            },
+            {
+              "name": "Get Community Stats",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/communities/1/stats",
+                  "host": ["{{base_url}}"],
+                  "path": ["communities", "1", "stats"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Discussions",
+          "item": [
+            {
+              "name": "Get Discussions",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/discussions",
+                  "host": ["{{base_url}}"],
+                  "path": ["discussions"]
+                }
+              }
+            },
+            {
+              "name": "Create Discussion",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Football Strategy Discussion\",\n  \"body\": \"Let's discuss the best formations for our next match\",\n  \"game_type_id\": 1\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/discussions",
+                  "host": ["{{base_url}}"],
+                  "path": ["discussions"]
+                }
+              }
+            },
+            {
+              "name": "Get Discussion Details",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/discussions/1",
+                  "host": ["{{base_url}}"],
+                  "path": ["discussions", "1"]
+                }
+              }
+            },
+            {
+              "name": "Update Discussion",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Updated Football Strategy Discussion\",\n  \"body\": \"Updated discussion content\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/discussions/1",
+                  "host": ["{{base_url}}"],
+                  "path": ["discussions", "1"]
+                }
+              }
+            },
+            {
+              "name": "Delete Discussion",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/discussions/1",
+                  "host": ["{{base_url}}"],
+                  "path": ["discussions", "1"]
+                }
+              }
+            },
+            {
+              "name": "Start Typing",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/discussions/1/typing/start",
+                  "host": ["{{base_url}}"],
+                  "path": ["discussions", "1", "typing", "start"]
+                }
+              }
+            },
+            {
+              "name": "Stop Typing",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/discussions/1/typing/stop",
+                  "host": ["{{base_url}}"],
+                  "path": ["discussions", "1", "typing", "stop"]
+                }
+              }
+            },
+            {
+              "name": "Get Typing Users",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/discussions/1/typing",
+                  "host": ["{{base_url}}"],
+                  "path": ["discussions", "1", "typing"]
+                }
+              }
+            },
+            {
+              "name": "Add Comment",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"body\": \"Great discussion! I think 4-4-2 would work best.\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/discussions/1/comments",
+                  "host": ["{{base_url}}"],
+                  "path": ["discussions", "1", "comments"]
+                }
+              }
+            },
+            {
+              "name": "Get Comments",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/discussions/1/comments",
+                  "host": ["{{base_url}}"],
+                  "path": ["discussions", "1", "comments"]
+                }
+              }
+            },
+            {
+              "name": "Like Discussion",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/discussions/1/likes",
+                  "host": ["{{base_url}}"],
+                  "path": ["discussions", "1", "likes"]
+                }
+              }
+            },
+            {
+              "name": "Unlike Discussion",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/discussions/1/likes",
+                  "host": ["{{base_url}}"],
+                  "path": ["discussions", "1", "likes"]
+                }
+              }
+            },
+            {
+              "name": "Get Trending Topics",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/discussions/trending/topics",
+                  "host": ["{{base_url}}"],
+                  "path": ["discussions", "trending", "topics"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tournaments",
+          "item": [
+            {
+              "name": "Get Tournaments",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/tournaments",
+                  "host": ["{{base_url}}"],
+                  "path": ["tournaments"]
+                }
+              }
+            },
+            {
+              "name": "Create Tournament",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Summer Football Championship\",\n  \"description\": \"Annual summer football tournament\",\n  \"game_type_id\": 1,\n  \"max_teams\": 16,\n  \"start_date\": \"2024-07-01\",\n  \"end_date\": \"2024-07-31\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/tournaments",
+                  "host": ["{{base_url}}"],
+                  "path": ["tournaments"]
+                }
+              }
+            },
+            {
+              "name": "Get Upcoming Matches",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/tournaments/upcoming-matches",
+                  "host": ["{{base_url}}"],
+                  "path": ["tournaments", "upcoming-matches"]
+                }
+              }
+            },
+            {
+              "name": "Get Tournament Details",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/tournaments/1",
+                  "host": ["{{base_url}}"],
+                  "path": ["tournaments", "1"]
+                }
+              }
+            },
+            {
+              "name": "Update Tournament",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Updated Tournament Name\",\n  \"description\": \"Updated description\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/tournaments/1",
+                  "host": ["{{base_url}}"],
+                  "path": ["tournaments", "1"]
+                }
+              }
+            },
+            {
+              "name": "Register for Tournament",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/tournaments/1/register",
+                  "host": ["{{base_url}}"],
+                  "path": ["tournaments", "1", "register"]
+                }
+              }
+            },
+            {
+              "name": "Unregister from Tournament",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/tournaments/1/unregister",
+                  "host": ["{{base_url}}"],
+                  "path": ["tournaments", "1", "unregister"]
+                }
+              }
+            },
+            {
+              "name": "Approve Tournament",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/tournaments/1/approve",
+                  "host": ["{{base_url}}"],
+                  "path": ["tournaments", "1", "approve"]
+                }
+              }
+            },
+            {
+              "name": "Reject Tournament",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/tournaments/1/reject",
+                  "host": ["{{base_url}}"],
+                  "path": ["tournaments", "1", "reject"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Conversations",
+          "item": [
+            {
+              "name": "Get Conversations",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/conversations",
+                  "host": ["{{base_url}}"],
+                  "path": ["conversations"]
+                }
+              }
+            },
+            {
+              "name": "Create Conversation",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"participants\": [2, 3],\n  \"type\": \"direct\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/conversations",
+                  "host": ["{{base_url}}"],
+                  "path": ["conversations"]
+                }
+              }
+            },
+            {
+              "name": "Get Messages",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/conversations/1/messages",
+                  "host": ["{{base_url}}"],
+                  "path": ["conversations", "1", "messages"]
+                }
+              }
+            },
+            {
+              "name": "Send Message",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"body\": \"Hey! Are you ready for the match tomorrow?\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/conversations/1/messages",
+                  "host": ["{{base_url}}"],
+                  "path": ["conversations", "1", "messages"]
+                }
+              }
+            },
+            {
+              "name": "Get Participants",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/conversations/1/participants",
+                  "host": ["{{base_url}}"],
+                  "path": ["conversations", "1", "participants"]
+                }
+              }
+            },
+            {
+              "name": "Mark as Read",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/conversations/1/read",
+                  "host": ["{{base_url}}"],
+                  "path": ["conversations", "1", "read"]
+                }
+              }
+            },
+            {
+              "name": "Start Typing",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/conversations/1/typing/start",
+                  "host": ["{{base_url}}"],
+                  "path": ["conversations", "1", "typing", "start"]
+                }
+              }
+            },
+            {
+              "name": "Stop Typing",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/conversations/1/typing/stop",
+                  "host": ["{{base_url}}"],
+                  "path": ["conversations", "1", "typing", "stop"]
+                }
+              }
+            },
+            {
+              "name": "Get Typing Users",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/conversations/1/typing",
+                  "host": ["{{base_url}}"],
+                  "path": ["conversations", "1", "typing"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Location Services (Protected)",
+          "item": [
+            {
+              "name": "Update Location",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"latitude\": 51.5074,\n  \"longitude\": -0.1278,\n  \"address\": \"London, UK\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/location/update",
+                  "host": ["{{base_url}}"],
+                  "path": ["location", "update"]
+                }
+              }
+            },
+            {
+              "name": "Get Location Suggestions",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/location/suggestions?query=London",
+                  "host": ["{{base_url}}"],
+                  "path": ["location", "suggestions"],
+                  "query": [
+                    {
+                      "key": "query",
+                      "value": "London"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Nearby Users",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/location/nearby-users?radius=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["location", "nearby-users"],
+                  "query": [
+                    {
+                      "key": "radius",
+                      "value": "10"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Community Users",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/location/community-users",
+                  "host": ["{{base_url}}"],
+                  "path": ["location", "community-users"]
+                }
+              }
+            },
+            {
+              "name": "Get Nearby Events",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/location/nearby-events?radius=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["location", "nearby-events"],
+                  "query": [
+                    {
+                      "key": "radius",
+                      "value": "10"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Community Events",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/location/community-events",
+                  "host": ["{{base_url}}"],
+                  "path": ["location", "community-events"]
+                }
+              }
+            },
+            {
+              "name": "Get Community Statistics",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/location/community-statistics",
+                  "host": ["{{base_url}}"],
+                  "path": ["location", "community-statistics"]
+                }
+              }
+            },
+            {
+              "name": "Search Communities",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/location/search-communities?query=London",
+                  "host": ["{{base_url}}"],
+                  "path": ["location", "search-communities"],
+                  "query": [
+                    {
+                      "key": "query",
+                      "value": "London"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Popular Communities",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/location/popular-communities",
+                  "host": ["{{base_url}}"],
+                  "path": ["location", "popular-communities"]
+                }
+              }
+            },
+            {
+              "name": "Get Community Recommendations",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/location/community-recommendations",
+                  "host": ["{{base_url}}"],
+                  "path": ["location", "community-recommendations"]
+                }
+              }
+            },
+            {
+              "name": "Get Location Recommendations",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/location/recommendations",
+                  "host": ["{{base_url}}"],
+                  "path": ["location", "recommendations"]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Debug APIs (Development Only)",
+      "item": [
+        {
+          "name": "Debug Sarah",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/debug-sarah",
+              "host": ["{{base_url}}"],
+              "path": ["debug-sarah"]
+            }
+          }
+        },
+        {
+          "name": "Debug Games",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/debug-games",
+              "host": ["{{base_url}}"],
+              "path": ["debug-games"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+

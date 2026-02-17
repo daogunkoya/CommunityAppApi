@@ -9,4 +9,10 @@ class GameEventParticipant extends Model
 {
     /** @use HasFactory<\Database\Factories\GameEventParticipantFactory> */
     use HasFactory;
+
+    protected $fillable = [
+        'game_event_id',
+        'user_id',
+        'is_waiting',
+    ];
 }

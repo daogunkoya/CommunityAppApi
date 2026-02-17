@@ -15,5 +15,9 @@ Route::middleware('auth:api')->group(function () {
     // Profile management
     Route::get('/profile', [ProfileController::class, 'show']);
     Route::post('/profile', [ProfileController::class, 'update']);
+    
+    // Sport Interests Management
+    Route::get('/profile/interests', [ProfileController::class, 'getInterests']);
+    Route::post('/profile/interests', [ProfileController::class, 'updateInterests']);
 });
 

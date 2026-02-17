@@ -30,6 +30,7 @@ class ProfileController extends Controller
                     'profile_picture' => $user->profile_picture,
                     'full_name' => $user->full_name,
                     'email_verified_at' => $user->email_verified_at,
+                    'bio' => $user->bio,
                 ]
             ]);
         } catch (\Exception $e) {
@@ -162,6 +163,7 @@ class ProfileController extends Controller
                     'profile_picture' => $user->profile_picture,
                     'full_name' => $user->full_name,
                     'email_verified_at' => $user->email_verified_at,
+                    'bio' => $user->bio,
                 ]
             ]);
         } catch (\Exception $e) {
@@ -169,6 +171,99 @@ class ProfileController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update profile',
+            ], 500);
+        }
+    }
+
+    /**
+     * Get user's sport interests
+     */
+    public function getInterests(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            $interests = $user->gameInterests()
+                ->get()
+                ->map(function ($gameType) {
+                    return [
+                        'game_type_id' => $gameType->id,
+                        'name' => $gameType->name,
+                        'skill_level' => $gameType->pivot->skill_level ?? 1,
+                        'color' => $gameType->color,
+                        'icon_path' => $gameType->icon_path,
+                        'description' => $gameType->description,
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => $interests,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Get interests error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch interests',
+            ], 500);
+        }
+    }
+
+    /**
+     * Update user's sport interests
+     */
+    public function updateInterests(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            $validated = $request->validate([
+                'interests' => 'required|array',
+                'interests.*.game_type_id' => 'required|exists:game_types,id',
+                'interests.*.skill_level' => 'required|integer|min:1|max:4',
+            ]);
+
+            // Prepare sync data
+            $syncData = [];
+            foreach ($validated['interests'] as $interest) {
+                $syncData[$interest['game_type_id']] = [
+                    'skill_level' => $interest['skill_level']
+                ];
+            }
+
+            // Sync user interests
+            $user->gameInterests()->sync($syncData);
+
+            Log::info("User {$user->id} interests updated", [
+                'interests' => $syncData,
+            ]);
+
+            // Return updated interests
+            $updatedInterests = $user->gameInterests()
+                ->get()
+                ->map(function ($gameType) {
+                    return [
+                        'game_type_id' => $gameType->id,
+                        'name' => $gameType->name,
+                        'skill_level' => $gameType->pivot->skill_level,
+                        'color' => $gameType->color,
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Interests updated successfully',
+                'data' => $updatedInterests,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Update interests error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update interests',
             ], 500);
         }
     }

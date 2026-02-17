@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:api')->group(function () {
     Route::get('/tournaments', [TournamentController::class, 'index']);
     Route::post('/tournaments', [TournamentController::class, 'store']);
+    Route::get('/tournaments/available-game-types', [TournamentController::class, 'availableGameTypes']);
     Route::get('/tournaments/upcoming-matches', [TournamentController::class, 'upcomingMatches']);
     Route::get('/tournaments/{tournament}', [TournamentController::class, 'show']);
     Route::put('/tournaments/{tournament}', [TournamentController::class, 'update']);

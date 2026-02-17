@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:api')->prefix('conversations')->group(function () {
     Route::get('/', [ConversationController::class, 'index']);
     Route::post('/', [ConversationController::class, 'store']);
+    Route::get('/{conversation}', [ConversationController::class, 'show']);
     Route::get('/{conversation}/messages', [ConversationController::class, 'getMessages']);
     Route::post('/{conversation}/messages', [ConversationController::class, 'sendMessage']);
     Route::get('/{conversation}/participants', [ConversationController::class, 'getParticipants']);

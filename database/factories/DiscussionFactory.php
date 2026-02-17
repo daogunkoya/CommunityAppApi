@@ -53,7 +53,7 @@ class DiscussionFactory extends Factory
             'Regular soccer pickup games at Memorial Park. Sundays at 2 PM. All skill levels welcome, just bring cleats!'
         ];
 
-        $topic = fake()->unique()->randomElement($topics);
+        $topic = fake()->randomElement($topics);
         $bodyIndex = array_search($topic, $topics);
         $body = $bodies[$bodyIndex] ?? fake()->paragraph(3);
 

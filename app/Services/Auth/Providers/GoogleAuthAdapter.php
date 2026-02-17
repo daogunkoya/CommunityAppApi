@@ -92,16 +92,16 @@ class GoogleAuthAdapter implements AuthProviderInterface
 
     public function verifyToken(string $token): bool
     {
-        // Accept demo tokens for testing in development
-        if (str_starts_with($token, 'demo_google_access_token_')) {
-            Log::info('Accepting demo Google token for testing');
-            return true;
-        }
-
-        // Accept mock tokens for testing in development
-        if (str_starts_with($token, 'mock_google_token_')) {
-            Log::info('Accepting mock Google token for testing');
-            return true;
+        // Only accept demo/mock tokens in local development
+        if ($this->isLocalOrAllowsDemoTokens()) {
+            if (str_starts_with($token, 'demo_google_access_token_')) {
+                Log::info('Accepting demo Google token for local testing');
+                return true;
+            }
+            if (str_starts_with($token, 'mock_google_token_')) {
+                Log::info('Accepting mock Google token for local testing');
+                return true;
+            }
         }
 
         try {
@@ -138,30 +138,36 @@ class GoogleAuthAdapter implements AuthProviderInterface
     /**
      * Verify Google ID token and extract user information
      */
+    private function isLocalOrAllowsDemoTokens(): bool
+    {
+        return config('app.env') === 'local'
+            || config('app.accept_demo_auth_tokens', false);
+    }
+
     public function verifyAndExtractUserInfo(string $idToken): ?array
     {
-        // Accept demo tokens for testing in any environment
-        if (str_starts_with($idToken, 'demo_google_access_token_')) {
-            Log::info('Accepting demo Google token for testing');
-            return [
-                'sub' => 'demo_google_user_123',
-                'email' => 'demo@example.com',
-                'given_name' => 'Demo',
-                'family_name' => 'User',
-                'picture' => null,
-            ];
-        }
-
-        // Accept mock tokens for testing in any environment
-        if (str_starts_with($idToken, 'mock_google_token_')) {
-            Log::info('Accepting mock Google ID token for testing');
-            return [
-                'sub' => 'mock_google_user_id',
-                'email' => 'test@example.com',
-                'given_name' => 'Test',
-                'family_name' => 'User',
-                'picture' => null,
-            ];
+        // Only accept demo/mock tokens in local development (security: never in production)
+        if ($this->isLocalOrAllowsDemoTokens()) {
+            if (str_starts_with($idToken, 'demo_google_access_token_')) {
+                Log::info('Accepting demo Google token for local testing');
+                return [
+                    'sub' => 'demo_google_user_123',
+                    'email' => 'demo@example.com',
+                    'given_name' => 'Demo',
+                    'family_name' => 'User',
+                    'picture' => null,
+                ];
+            }
+            if (str_starts_with($idToken, 'mock_google_token_')) {
+                Log::info('Accepting mock Google ID token for local testing');
+                return [
+                    'sub' => 'mock_google_user_id',
+                    'email' => 'test@example.com',
+                    'given_name' => 'Test',
+                    'family_name' => 'User',
+                    'picture' => null,
+                ];
+            }
         }
 
         try {
@@ -178,19 +184,38 @@ class GoogleAuthAdapter implements AuthProviderInterface
                 return null;
             }
 
-            // Verify the token using the existing verifyToken method
-            if (!$this->verifyToken($idToken)) {
+            // For Google One Tap ID tokens, we need to verify with Google's tokeninfo endpoint for ID tokens
+            // This is different from access tokens
+            $response = Http::get('https://oauth2.googleapis.com/tokeninfo', [
+                'id_token' => $idToken
+            ]);
+
+            if ($response->successful()) {
+                $tokenInfo = $response->json();
+                
+                // Verify audience (client ID)
+                if (isset($tokenInfo['aud']) && $tokenInfo['aud'] === $this->googleClientId) {
+                    Log::info('Google ID token verified successfully');
+                    // Extract user information from the payload
+                    return [
+                        'sub' => $payload['sub'] ?? null,
+                        'email' => $payload['email'] ?? null,
+                        'given_name' => $payload['given_name'] ?? null,
+                        'family_name' => $payload['family_name'] ?? null,
+                        'picture' => $payload['picture'] ?? null,
+                    ];
+                }
+
+                Log::warning('Google ID token verification failed: wrong audience', [
+                    'expected' => $this->googleClientId,
+                    'received' => $tokenInfo['aud'] ?? 'unknown'
+                ]);
                 return null;
             }
 
-            // Extract user information from the payload
-            return [
-                'sub' => $payload['sub'] ?? null,
-                'email' => $payload['email'] ?? null,
-                'given_name' => $payload['given_name'] ?? null,
-                'family_name' => $payload['family_name'] ?? null,
-                'picture' => $payload['picture'] ?? null,
-            ];
+            Log::warning('Failed to verify Google ID token with Google servers');
+            return null;
+
         } catch (\Exception $e) {
             Log::error('Google ID token verification error: ' . $e->getMessage());
             return null;

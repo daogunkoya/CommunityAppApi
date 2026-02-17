@@ -18,7 +18,7 @@ class CommunityController extends Controller
         $user = $request->user();
 
         $communities = $user->communities()
-            ->where('is_active', true)
+            ->where('communities.is_active', true)
             ->get()
             ->map(function ($community) {
                 return [
@@ -100,7 +100,7 @@ class CommunityController extends Controller
         $user = $request->user();
 
         $primaryCommunity = $user->communities()
-            ->where('is_active', true)
+            ->where('communities.is_active', true)
             ->where('is_primary', true)
             ->first();
 

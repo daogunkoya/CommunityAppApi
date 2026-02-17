@@ -6,6 +6,7 @@ use App\Models\Tournament;
 use App\Models\TournamentMatch;
 use App\Models\TournamentBracket;
 use App\Models\User;
+use App\Models\GameType;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
@@ -24,12 +25,14 @@ class TournamentController extends Controller
             $validated = $request->validate([
                 'search' => 'nullable|string|max:255',
                 'sport' => 'nullable|string|exists:game_types,name',
-                'status' => 'nullable|string|in:draft,open,filling-fast,almost-full,registration-closed,in-progress,completed,cancelled',
+                'game_type' => 'nullable|string|max:255',
+                'status' => 'nullable|string|in:draft,open,filling-fast,almost-full,registration-closed,in-progress,completed,cancelled,pending_approval',
                 'skill_level' => 'nullable|integer|min:1|max:4',
                 'date_from' => 'nullable|date',
                 'date_to' => 'nullable|date',
                 'featured_only' => 'nullable|boolean',
                 'my_tournaments_only' => 'nullable|boolean',
+                'filter_by_interests' => 'nullable|string|in:true,false,0,1',
                 'per_page' => 'nullable|integer|min:1|max:50',
                 'page' => 'nullable|integer|min:1',
             ]);
@@ -45,15 +48,59 @@ class TournamentController extends Controller
             if (isset($validated['search'])) {
                 $query->where(function ($q) use ($validated) {
                     $q->where('name', 'like', '%' . $validated['search'] . '%')
-                      ->orWhere('description', 'like', '%' . $validated['search'] . '%')
-                      ->orWhere('location', 'like', '%' . $validated['search'] . '%');
+                        ->orWhere('description', 'like', '%' . $validated['search'] . '%')
+                        ->orWhere('location', 'like', '%' . $validated['search'] . '%');
                 });
+            }
+
+            // Apply user interest filtering (DEFAULT BEHAVIOR)
+            $shouldFilterByInterests = !isset($validated['filter_by_interests']) ||
+                (isset($validated['filter_by_interests']) &&
+                    in_array($validated['filter_by_interests'], ['true', '1'], true));
+
+            if ($shouldFilterByInterests) {
+                $userInterests = $user->gameInterests()->pluck('game_type_id')->toArray();
+
+                if (!empty($userInterests)) {
+                    Log::info('Filtering tournaments by user interests:', [
+                        'user_id' => $user->id,
+                        'interests' => $userInterests
+                    ]);
+
+                    $query->whereIn('game_type_id', $userInterests);
+                }
             }
 
             // Apply sport filter
             if (isset($validated['sport'])) {
                 $query->whereHas('gameType', function ($q) use ($validated) {
                     $q->where('name', $validated['sport']);
+                });
+            }
+
+            // Apply game_type filter (for dropdown)
+            if (isset($validated['game_type'])) {
+                $query->whereHas('gameType', function ($q) use ($validated) {
+                    $gameTypeMap = [
+                        'football' => 'Football',
+                        'tennis' => 'Tennis',
+                        'basketball' => 'Basketball',
+                        'cricket' => 'Cricket',
+                        'rugby' => 'Rugby',
+                        'golf' => 'Golf',
+                        'swimming' => 'Swimming',
+                        'cycling' => 'Cycling',
+                        'running' => 'Running',
+                        'volleyball' => 'Volleyball',
+                        'badminton' => 'Badminton',
+                        'table-tennis' => 'Table Tennis',
+                        'hockey' => 'Hockey',
+                        'boxing' => 'Boxing',
+                        'martial-arts' => 'Martial Arts',
+                    ];
+
+                    $dbGameType = $gameTypeMap[$validated['game_type']] ?? $validated['game_type'];
+                    $q->where('name', $dbGameType);
                 });
             }
 
@@ -87,9 +134,14 @@ class TournamentController extends Controller
 
             // Order by featured first, then by start date
             $query->orderBy('is_featured', 'desc')
-                  ->orderBy('starts_at', 'asc');
+                ->orderBy('starts_at', 'asc');
 
             $tournaments = $query->paginate($perPage, ['*'], 'page', $page);
+
+            // Get user interests for response metadata
+            $userInterests = $user->gameInterests()->get();
+            $interestNames = $userInterests->pluck('name')->toArray();
+            $hasInterests = !empty($userInterests);
 
             return response()->json([
                 'success' => true,
@@ -144,6 +196,17 @@ class TournamentController extends Controller
                     'last_page' => $tournaments->lastPage(),
                     'per_page' => $tournaments->perPage(),
                     'total' => $tournaments->total(),
+                ],
+                'meta' => [
+                    'filtered_by_interests' => $shouldFilterByInterests && $hasInterests,
+                    'user_interests' => [
+                        'names' => $interestNames,
+                        'count' => count($interestNames),
+                        'has_interests' => $hasInterests,
+                    ],
+                    'message' => $hasInterests
+                        ? "Showing tournaments for your interests: " . implode(', ', $interestNames)
+                        : "Showing all tournaments. Set your sport interests for personalized content.",
                 ],
             ]);
 
@@ -308,25 +371,33 @@ class TournamentController extends Controller
                 'organiser_id' => $user->id,
                 'location' => $validated['location'],
                 'address' => $validated['address'],
+                'city' => $validated['city'] ?? null,
+                'state' => $validated['state'] ?? null,
+                'postal_code' => $validated['postal_code'] ?? null,
+                'country' => $validated['country'] ?? null,
+                'latitude' => $validated['latitude'] ?? null,
+                'longitude' => $validated['longitude'] ?? null,
                 'starts_at' => $validated['starts_at'],
                 'ends_at' => $validated['ends_at'],
                 'registration_deadline' => $validated['registration_deadline'],
                 'max_participants' => $validated['max_participants'],
-                'entry_fee' => $validated['entry_fee'],
-                'prize_pool' => $validated['prize_pool'],
+                'min_participants' => $validated['min_participants'] ?? 2,
+                'entry_fee' => $validated['entry_fee'] ?? 0,
+                'prize_pool' => $validated['prize_pool'] ?? 0,
                 'prize_description' => $validated['prize_description'] ?? '',
                 'skill_level' => $validated['skill_level'],
-                'status' => 'pending_approval',
-                'approval_status' => 'pending',
+                'status' => 'open', // Changed from 'pending_approval' to show immediately
+                'approval_status' => 'approved', // Auto-approve for now
                 'rules' => $validated['rules'] ?? '',
-                'format' => $validated['format'] ?? '',
+                'format' => $validated['format'] ?? 'single-elimination',
+                'bracket_type' => $validated['bracket_type'] ?? 'standard',
                 'registration_enabled' => true,
-                'waiting_list_enabled' => false,
+                'waiting_list_enabled' => $validated['waiting_list_enabled'] ?? false,
             ]);
 
             // Auto-create tournament conversation
             $conversation = \App\Models\Conversation::create([
-                'type' => 'tournament',
+                'type' => 'group', // Use group type to enable member list in app
                 'name' => $tournament->name . ' - Tournament Chat',
                 'context_id' => $tournament->id,
             ]);
@@ -415,23 +486,33 @@ class TournamentController extends Controller
                 'is_waiting' => $isWaiting,
             ]);
 
-            // Auto-add user to tournament conversation
-            $tournamentConversation = \App\Models\Conversation::where('type', 'tournament')
+            // Auto-add user to tournament conversation (create if missing for older tournaments)
+            $tournamentConversation = \App\Models\Conversation::where('type', 'group')
                 ->where('context_id', $tournament->id)
                 ->first();
 
-            if ($tournamentConversation && !$tournamentConversation->participants()->where('users.id', $user->id)->exists()) {
+            if (!$tournamentConversation) {
+                $tournamentConversation = \App\Models\Conversation::create([
+                    'type' => 'group',
+                    'name' => $tournament->name . ' - Tournament Chat',
+                    'context_id' => $tournament->id,
+                ]);
+                $tournamentConversation->participants()->attach($tournament->organiser_id);
+            }
+
+            if (!$tournamentConversation->participants()->where('users.id', $user->id)->exists()) {
                 $tournamentConversation->participants()->attach($user->id);
             }
 
             DB::commit();
 
+            $responseData = ['is_waiting' => $isWaiting];
+            $responseData['conversation_id'] = $tournamentConversation->id;
+
             return response()->json([
                 'success' => true,
                 'message' => $isWaiting ? 'Added to waiting list' : 'Successfully registered for tournament',
-                'data' => [
-                    'is_waiting' => $isWaiting,
-                ]
+                'data' => $responseData,
             ]);
 
         } catch (\Exception $e) {
@@ -477,6 +558,57 @@ class TournamentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to unregister from tournament',
+            ], 500);
+        }
+    }
+
+    /**
+     * Get available game types for tournaments (user's interests only)
+     */
+    public function availableGameTypes(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            // Get user's sport interests
+            $userInterests = $user->gameInterests()->get();
+
+            if ($userInterests->isEmpty()) {
+                // New users with no interests: return all game types
+                $allTypes = GameType::orderBy('name')->get(['id', 'name', 'color', 'icon_path']);
+                return response()->json([
+                    'success' => true,
+                    'data' => $allTypes->map(fn($gt) => [
+                        'id' => $gt->id,
+                        'name' => $gt->name,
+                        'color' => $gt->color,
+                        'icon_path' => $gt->icon_path,
+                    ])->values()->all(),
+                    'message' => 'All game types (set your interests in profile for personalized lists)',
+                ]);
+            }
+
+            // Return the user's interests as available game types
+            $gameTypes = $userInterests->map(function ($interest) {
+                return [
+                    'id' => $interest->id,
+                    'name' => $interest->name,
+                    'color' => $interest->color,
+                    'icon_path' => $interest->icon_path,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $gameTypes,
+                'message' => 'Available game types based on your interests'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Available game types error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch available game types',
             ], 500);
         }
     }

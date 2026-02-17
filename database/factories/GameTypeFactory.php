@@ -34,7 +34,7 @@ class GameTypeFactory extends Factory
             'Rugby' => 'A physical team sport with oval ball, emphasizing strength and teamwork.',
         ];
 
-        $sport = fake()->unique()->randomElement(array_keys($sports));
+        $sport = fake()->randomElement(array_keys($sports));
 
         return [
             'name' => $sport,

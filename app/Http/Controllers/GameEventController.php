@@ -8,6 +8,8 @@ use App\Models\GameEvent;
 use App\Models\GameType;
 use App\Models\User;
 use App\Models\Community;
+use App\Models\Conversation;
+use App\Models\Message;
 use Carbon\Carbon;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Http\JsonResponse;
@@ -16,7 +18,9 @@ use Illuminate\Support\Facades\Log;
 
 class GameEventController extends Controller
 {
-    public function __construct(public GameEventRepository $service) {}
+    public function __construct(public GameEventRepository $service)
+    {
+    }
 
     /**
      * Get all game events with filtering and pagination
@@ -44,7 +48,7 @@ class GameEventController extends Controller
 
             $query = GameEvent::with(['gameType', 'organiser', 'participants', 'community'])
                 ->where('starts_at', '>', now()->startOfMinute())
-                ->whereHas('gameType', function($q) {
+                ->whereHas('gameType', function ($q) {
                     $q->whereNotNull('name')->where('name', '!=', '');
                 });
 
@@ -60,9 +64,9 @@ class GameEventController extends Controller
                         ELSE NULL
                     END AS distance
                 ", [$user->latitude, $user->longitude, $user->latitude])
-                ->orderByRaw('CASE WHEN distance IS NOT NULL THEN 0 ELSE 1 END')
-                ->orderBy('distance', 'asc')
-                ->orderBy('starts_at', 'asc');
+                    ->orderByRaw('CASE WHEN distance IS NOT NULL THEN 0 ELSE 1 END')
+                    ->orderBy('distance', 'asc')
+                    ->orderBy('starts_at', 'asc');
             } else {
                 $query->orderBy('starts_at', 'asc');
             }
@@ -120,7 +124,7 @@ class GameEventController extends Controller
                 }
             }
 
-                            $events = $query->paginate($perPage, ['*'], 'page', $page);
+            $events = $query->paginate($perPage, ['*'], 'page', $page);
 
             return response()->json([
                 'success' => true,
@@ -129,8 +133,10 @@ class GameEventController extends Controller
                     $distance = null;
                     if ($user && $user->latitude && $user->longitude && $event->latitude && $event->longitude) {
                         $distance = $this->calculateDistance(
-                            $user->latitude, $user->longitude,
-                            $event->latitude, $event->longitude
+                            $user->latitude,
+                            $user->longitude,
+                            $event->latitude,
+                            $event->longitude
                         );
                     }
 
@@ -154,12 +160,12 @@ class GameEventController extends Controller
                         'starts_at_relative' => Carbon::parse($event->starts_at)->diffForHumans(),
                         'skill_level' => $event->skill_level->value,
                         'skill_level_label' => $event->skill_level->label(),
-                        'venue_booked' => $event->venue_booked,
+                        'venue_booked' => (bool) $event->venue_booked, // Cast to boolean
                         'notes' => $event->notes,
                         'max_participants' => $event->max_participants,
                         'current_participants' => $event->participants()->count(),
-                        'waiting_list_enabled' => $event->waiting_list_enabled,
-                        'is_full' => $event->max_participants && $event->participants()->count() >= $event->max_participants,
+                        'waiting_list_enabled' => (bool) $event->waiting_list_enabled, // Cast to boolean
+                        'is_full' => (bool) ($event->max_participants && $event->participants()->count() >= $event->max_participants), // Cast to boolean
                         'organiser' => [
                             'id' => $event->organiser->id,
                             'name' => $event->organiser->full_name,
@@ -170,14 +176,14 @@ class GameEventController extends Controller
                                 'id' => $participant->id,
                                 'name' => $participant->full_name,
                                 'avatar' => $participant->profile_picture,
-                                'is_waiting' => $participant->pivot->is_waiting,
+                                'is_waiting' => (bool) $participant->pivot->is_waiting, // Cast to boolean
                             ];
                         }),
                         'user_participation' => [
-                            'is_participating' => $event->participants()->where('user_id', $user->id)->exists(),
-                            'is_waiting' => $event->participants()->where('user_id', $user->id)->where('is_waiting', true)->exists(),
-                            'can_join' => !$event->participants()->where('user_id', $user->id)->exists() &&
-                                        (!$event->max_participants || $event->participants()->count() < $event->max_participants),
+                            'is_participating' => (bool) $event->participants()->where('user_id', $user->id)->exists(),
+                            'is_waiting' => (bool) $event->participants()->where('user_id', $user->id)->where('is_waiting', true)->exists(),
+                            'can_join' => (bool) (!$event->participants()->where('user_id', $user->id)->exists() &&
+                                (!$event->max_participants || $event->participants()->count() < $event->max_participants)),
                         ],
                         'created_at' => $event->created_at->format('Y-m-d H:i:s'),
                         'updated_at' => $event->updated_at->format('Y-m-d H:i:s'),
@@ -320,10 +326,11 @@ class GameEventController extends Controller
     /**
      * Get a specific game event
      */
-    public function show(GameEvent $event): JsonResponse
+    public function show(Request $request, GameEvent $event): JsonResponse
     {
         try {
-            $event->load(['gameType', 'organiser', 'participants']);
+            $event->load(['gameType', 'organiser', 'participants', 'community']);
+            $user = $request->user();
 
             return response()->json([
                 'success' => true,
@@ -332,16 +339,27 @@ class GameEventController extends Controller
                     'title' => $event->gameType->name . ' Game',
                     'sport' => $event->gameType->name,
                     'location' => $event->location,
+                    'address' => $event->address,
+                    'city' => $event->city,
+                    'borough' => $event->borough,
+                    'community' => $event->community ? [
+                        'id' => $event->community->id,
+                        'name' => $event->community->name,
+                        'type' => $event->community->type,
+                        'full_location' => $event->community->full_location,
+                    ] : null,
+                    'distance_km' => null,
+                    'distance_formatted' => null,
                     'starts_at' => Carbon::parse($event->starts_at)->format('Y-m-d H:i'),
                     'starts_at_relative' => Carbon::parse($event->starts_at)->diffForHumans(),
                     'skill_level' => $event->skill_level->value,
                     'skill_level_label' => $event->skill_level->label(),
-                    'venue_booked' => $event->venue_booked,
+                    'venue_booked' => (bool) $event->venue_booked, // Cast to boolean
                     'notes' => $event->notes,
                     'max_participants' => $event->max_participants,
                     'current_participants' => $event->participants()->count(),
-                    'waiting_list_enabled' => $event->waiting_list_enabled,
-                    'is_full' => $event->max_participants && $event->participants()->count() >= $event->max_participants,
+                    'waiting_list_enabled' => (bool) $event->waiting_list_enabled, // Cast to boolean
+                    'is_full' => (bool) ($event->max_participants && $event->participants()->count() >= $event->max_participants), // Cast to boolean
                     'organiser' => [
                         'id' => $event->organiser->id,
                         'name' => $event->organiser->full_name,
@@ -352,9 +370,15 @@ class GameEventController extends Controller
                             'id' => $participant->id,
                             'name' => $participant->full_name,
                             'avatar' => $participant->profile_picture,
-                            'is_waiting' => $participant->pivot->is_waiting,
+                            'is_waiting' => (bool) $participant->pivot->is_waiting, // Cast to boolean
                         ];
                     }),
+                    'user_participation' => [
+                        'is_participating' => (bool) ($user ? $event->participants()->where('user_id', $user->id)->exists() : false),
+                        'is_waiting' => (bool) ($user ? $event->participants()->where('user_id', $user->id)->where('is_waiting', true)->exists() : false),
+                        'can_join' => (bool) ($user && !$event->participants()->where('user_id', $user->id)->exists() &&
+                            (!$event->max_participants || $event->participants()->count() < $event->max_participants)),
+                    ],
                     'created_at' => $event->created_at->format('Y-m-d H:i:s'),
                     'updated_at' => $event->updated_at->format('Y-m-d H:i:s'),
                 ]
@@ -462,27 +486,42 @@ class GameEventController extends Controller
             $user = $request->user();
 
             // Check if user is already participating
-            if ($event->participants()->where('user_id', $user->id)->exists()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Already participating in this event'
-                ], 400);
-            }
+            $participant = $event->participants()->where('user_id', $user->id)->first();
 
-            // Check if event is full
-            if ($event->max_participants && $event->participants()->count() >= $event->max_participants) {
-                if (!$event->waiting_list_enabled) {
+            if (!$participant) {
+                // Check if event is full
+                if ($event->max_participants && $event->participants()->count() >= $event->max_participants) {
+                    if (!$event->waiting_list_enabled) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Event is full and waiting list is disabled'
+                        ], 400);
+                    }
+                    // Add to waiting list
+                    $event->participants()->attach($user->id, ['is_waiting' => true]);
+
+                    // Auto-add user to community conversation if event has community
+                    if ($event->community_id) {
+                        $communityConversation = \App\Models\Conversation::where('type', 'community')
+                            ->where('context_id', $event->community_id)
+                            ->first();
+
+                        if ($communityConversation && !$communityConversation->participants()->where('users.id', $user->id)->exists()) {
+                            $communityConversation->participants()->attach($user->id);
+                        }
+                    }
+
                     return response()->json([
-                        'success' => false,
-                        'message' => 'Event is full and waiting list is disabled'
-                    ], 400);
+                        'success' => true,
+                        'message' => 'Added to waiting list'
+                    ]);
                 }
-                // Add to waiting list
-                $event->participants()->attach($user->id, ['is_waiting' => true]);
+
+                $event->participants()->attach($user->id, ['is_waiting' => false]);
 
                 // Auto-add user to community conversation if event has community
                 if ($event->community_id) {
-                    $communityConversation = \App\Models\Conversation::where('type', 'community')
+                    $communityConversation = Conversation::where('type', 'community')
                         ->where('context_id', $event->community_id)
                         ->first();
 
@@ -490,29 +529,73 @@ class GameEventController extends Controller
                         $communityConversation->participants()->attach($user->id);
                     }
                 }
+            } else {
+                // User is already participating
+                if ($participant->pivot->is_waiting) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'You are on the waiting list'
+                    ]);
+                }
+                // If confirmed participant, proceed to return conversation
+            }
 
+            // Create or get game chat between organiser and joiner so they can confirm the game
+            $organiserId = $event->organiser_id;
+
+            // If the user is the organiser, we can't create a chat with themselves in this context logic
+            // But usually the join button shouldn't be available for the organiser. 
+            // If they call this API, we should probably find any existing game chat or just return success.
+            // However, the standard flow is User joining Organiser's game.
+
+            $otherUserId = $organiserId;
+            if ($user->id === $organiserId) {
+                // Edge case: Organiser calling join? 
+                // Maybe they want to go to the chat? 
+                // But which chat? The game chat is usually 1-on-1 between organiser and participant.
+                // For now let's assume standard flow or return generic success.
                 return response()->json([
                     'success' => true,
-                    'message' => 'Added to waiting list'
+                    'message' => 'You are the organiser of this event',
+                    // potentially return list of conversations? But strict contract requires one ID.
                 ]);
             }
 
-            $event->participants()->attach($user->id, ['is_waiting' => false]);
+            $joinerName = $user->first_name . ' ' . $user->last_name;
+            $conversation = Conversation::where('type', 'direct')
+                ->where('context_id', $event->id)
+                ->whereHas('participants', fn($q) => $q->where('users.id', $otherUserId))
+                ->whereHas('participants', fn($q) => $q->where('users.id', $user->id))
+                ->first();
 
-            // Auto-add user to community conversation if event has community
-            if ($event->community_id) {
-                $communityConversation = \App\Models\Conversation::where('type', 'community')
-                    ->where('context_id', $event->community_id)
-                    ->first();
+            if (!$conversation) {
+                // Use 'direct' type to avoid database constraint issues with 'game' type
+                // But keep context_id to link it to the game event
+                $conversation = Conversation::create([
+                    'type' => 'direct',
+                    'name' => null, // Direct messages usually don't have a name
+                    'context_id' => $event->id,
+                ]);
+                $conversation->participants()->attach([$otherUserId, $user->id]);
 
-                if ($communityConversation && !$communityConversation->participants()->where('users.id', $user->id)->exists()) {
-                    $communityConversation->participants()->attach($user->id);
-                }
+                $guidelines = "This game is not confirmed until agreed in chat by both players involved.\n"
+                    . "Any court fee should be discussed and shared if the creator allows it.\n"
+                    . "Please communicate early if plans change.";
+                $systemContent = $joinerName . ' joined the game!' . "\n\n" . $guidelines;
+
+                $systemMessage = $conversation->messages()->create([
+                    'user_id' => $user->id,
+                    'content' => $systemContent,
+                ]);
+                $conversation->update(['last_message_id' => $systemMessage->id]);
             }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Successfully joined the event'
+                'message' => 'Successfully joined the event',
+                'data' => [
+                    'conversation_id' => $conversation->id,
+                ],
             ]);
 
         } catch (\Exception $e) {
@@ -623,8 +706,8 @@ class GameEventController extends Controller
         $lonDelta = deg2rad($lon2 - $lon1);
 
         $a = sin($latDelta / 2) * sin($latDelta / 2) +
-             cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
-             sin($lonDelta / 2) * sin($lonDelta / 2);
+            cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+            sin($lonDelta / 2) * sin($lonDelta / 2);
 
         $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
 
@@ -644,6 +727,133 @@ class GameEventController extends Controller
             return round($miles, 1) . ' miles';
         } else {
             return round($miles) . ' miles';
+        }
+    }
+
+    /**
+     * Get comments for a game event
+     */
+    public function getComments(Request $request, GameEvent $event): JsonResponse
+    {
+        try {
+            $comments = $event->comments()
+                ->with('author:id,full_name,profile_picture')
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($comment) {
+                    return [
+                        'id' => $comment->id,
+                        'body' => $comment->body,
+                        'author' => [
+                            'id' => $comment->author->id,
+                            'name' => $comment->author->full_name,
+                            'avatar' => $comment->author->profile_picture,
+                        ],
+                        'created_at' => $comment->created_at->format('Y-m-d H:i:s'),
+                        'created_at_relative' => $comment->created_at->diffForHumans(),
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => $comments
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('GameEvent getComments error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch comments',
+            ], 500);
+        }
+    }
+
+    /**
+     * Add a comment to a game event
+     */
+    public function addComment(Request $request, GameEvent $event): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'body' => 'required|string|max:1000',
+            ]);
+
+            $user = $request->user();
+
+            $comment = $event->comments()->create([
+                'user_id' => $user->id,
+                'body' => $validated['body'],
+            ]);
+
+            $comment->load('author:id,full_name,profile_picture');
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $comment->id,
+                    'body' => $comment->body,
+                    'author' => [
+                        'id' => $comment->author->id,
+                        'name' => $comment->author->full_name,
+                        'avatar' => $comment->author->profile_picture,
+                    ],
+                    'created_at' => $comment->created_at->format('Y-m-d H:i:s'),
+                    'created_at_relative' => $comment->created_at->diffForHumans(),
+                ]
+            ], 201);
+
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('GameEvent addComment error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to add comment',
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete a comment from a game event
+     */
+    public function deleteComment(Request $request, GameEvent $event, int $commentId): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $comment = $event->comments()->where('id', $commentId)->first();
+
+            if (!$comment) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Comment not found'
+                ], 404);
+            }
+
+            // Check if user is the comment author or event organiser
+            if ($comment->user_id !== $user->id && $event->organiser_id !== $user->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized - Only the comment author or event organiser can delete comments'
+                ], 403);
+            }
+
+            $comment->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Comment deleted successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('GameEvent deleteComment error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete comment',
+            ], 500);
         }
     }
 }

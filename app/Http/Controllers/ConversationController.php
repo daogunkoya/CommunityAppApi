@@ -22,13 +22,31 @@ class ConversationController extends Controller
 
         $conversations = Conversation::whereHas('participants', function ($query) use ($user) {
             $query->where('users.id', $user->id);
-        })->with(['participants', 'lastMessage'])->get()->map(function ($conversation) use ($user) {
-            return $this->formatConversation($conversation, $user);
-        });
+        })->with(['participants', 'lastMessage'])
+            ->orderByDesc('updated_at')
+            ->get()->map(function ($conversation) use ($user) {
+                return $this->formatConversation($conversation, $user);
+            });
 
         return response()->json([
             'success' => true,
             'data' => $conversations
+        ]);
+    }
+
+    /**
+     * Get a single conversation by ID (must be a participant)
+     */
+    public function show(Request $request, $conversationId)
+    {
+        $user = $request->user();
+        $conversation = Conversation::whereHas('participants', function ($query) use ($user) {
+            $query->where('users.id', $user->id);
+        })->with(['participants', 'lastMessage'])->findOrFail($conversationId);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatConversation($conversation, $user),
         ]);
     }
 
@@ -40,7 +58,7 @@ class ConversationController extends Controller
         try {
             $user = $request->user();
             $data = $request->validate([
-                'type' => 'required|in:direct,group,tournament,community',
+                'type' => 'required|in:direct,group,tournament,community,game',
                 'name' => 'nullable|string|max:255',
                 'participant_ids' => 'required_if:type,direct,group|array',
                 'participant_ids.*' => 'integer|exists:users,id',
@@ -104,41 +122,79 @@ class ConversationController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate($perPage, ['*'], 'page', $page);
 
-        // Mark messages as read
+        // Mark messages as read (only user messages, not system)
         $conversation->messages()
+            ->whereNotNull('user_id')
             ->where('user_id', '!=', $user->id)
             ->where('read_at', null)
             ->update(['read_at' => now()]);
 
         $formattedMessages = $messages->getCollection()->map(function ($message) use ($user) {
-            return [
-                'id' => $message->id,
-                'sender' => [
+            $sender = $message->user
+                ? [
                     'id' => $message->user->id,
                     'name' => $message->user->full_name,
-                    'avatar' => $message->user->profile_picture
-                ],
+                    'avatar' => $message->user->profile_picture,
+                ]
+                : ['id' => 0, 'name' => 'System', 'avatar' => null];
+            return [
+                'id' => $message->id,
+                'sender' => $sender,
                 'content' => $message->content,
                 'created_at' => $message->created_at->toISOString(),
                 'created_at_relative' => $message->created_at->diffForHumans(),
-                'is_own' => $message->user_id === $user->id
+                'is_own' => $message->user_id === $user->id,
+                'is_system' => (bool) ($message->is_system ?? str_contains($message->content ?? '', ' joined the game!')),
             ];
         })->reverse()->values();
 
-        return response()->json([
+        // For game conversations (direct with context), return a sticky notice (first "joined the game" message)
+        $stickyNotice = null;
+        if ($conversation->type === 'direct' && $conversation->context_id) {
+            $joinMessage = $conversation->messages()
+                ->orderBy('created_at', 'asc')
+                ->first();
+            if ($joinMessage && str_contains($joinMessage->content, ' joined the game!')) {
+                $parts = explode("\n\n", $joinMessage->content, 2);
+                $stickyNotice = [
+                    'line' => $parts[0],
+                    'guidelines' => isset($parts[1]) ? array_filter(explode("\n", $parts[1])) : [],
+                ];
+            }
+        }
+
+        // For tournament conversations (group with context), return a sticky notice
+        if ($conversation->type === 'group' && $conversation->context_id) {
+            $stickyNotice = [
+                'line' => "Welcome to the tournament chat!",
+                'guidelines' => [
+                    "This is the official group for " . $conversation->name . ".",
+                    "You can see all participants by tapping the header.",
+                    "Be respectful and have fun!"
+                ]
+            ];
+        }
+
+        $payload = [
             'success' => true,
             'data' => $formattedMessages,
             'pagination' => [
                 'current_page' => $messages->currentPage(),
                 'last_page' => $messages->lastPage(),
                 'per_page' => $messages->perPage(),
-                'total' => $messages->total()
+                'total' => $messages->total(),
             ],
             'conversation' => [
                 'id' => $conversation->id,
-                'unread_count' => 0 // Since we just marked all messages as read
-            ]
-        ]);
+                'type' => $conversation->type,
+                'unread_count' => 0,
+            ],
+        ];
+        if ($stickyNotice !== null) {
+            $payload['sticky_notice'] = $stickyNotice;
+        }
+
+        return response()->json($payload);
     }
 
     /**
@@ -237,7 +293,7 @@ class ConversationController extends Controller
     /**
      * Format a conversation for API response
      */
-    private function formatConversation(Conversation $conversation, User $currentUser)
+    private function formatConversation($conversation, User $currentUser)
     {
         $otherParticipants = $conversation->participants->where('id', '!=', $currentUser->id);
 

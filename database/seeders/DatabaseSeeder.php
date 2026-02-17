@@ -3,331 +3,322 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 use App\Models\User;
 use App\Models\GameType;
 use App\Models\GameEvent;
 use App\Models\Discussion;
 use App\Models\Comment;
 use App\Models\Like;
+use App\Models\Conversation;
+use App\Models\Message;
 use App\Models\GameEventParticipant;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\DB;
+use App\Models\UserSkillLevel;
+use App\Models\UserPreferredFacility;
+use App\Models\Tournament;
+use App\Models\Community;
+use App\Models\TournamentBracket;
+use App\Models\TournamentMatch;
+use App\Models\ConversationParticipant;
+use App\Models\TypingIndicator;
 
 class DatabaseSeeder extends Seeder
 {
+    /**
+     * Seed the application's database.
+     */
     public function run(): void
     {
-        $this->truncateTables();
-        $this->createSportTypes();
-        $this->createUsers();
-        $this->createGameEvents();
-        $this->createDiscussions();
-        $this->createComments();
-        $this->createLikes();
-        $this->createEventParticipants();
-    }
+        echo "🌱 Starting comprehensive database seeding...\n";
 
-    private function truncateTables(): void
-    {
-        // Disable foreign key checks for MySQL
-        if (DB::connection()->getDriverName() === 'mysql') {
-            DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        // Create Game Types first (needed by other models)
+        echo "🏀 Creating game types...\n";
+        if (GameType::count() === 0) {
+            $sports = [
+                ['name' => 'Football', 'description' => 'The world\'s most popular sport, played with 11 players per team on a rectangular field.', 'icon_path' => '/icons/football.svg'],
+                ['name' => 'Basketball', 'description' => 'A fast-paced team sport played on a court with two hoops, requiring skill and teamwork.', 'icon_path' => '/icons/basketball.svg'],
+                ['name' => 'Tennis', 'description' => 'A racket sport played individually or in doubles, requiring agility and strategy.', 'icon_path' => '/icons/tennis.svg'],
+                ['name' => 'Swimming', 'description' => 'A water-based sport that builds endurance and works all major muscle groups.', 'icon_path' => '/icons/swimming.svg'],
+                ['name' => 'Cycling', 'description' => 'A cardiovascular sport that can be done on roads, trails, or in velodromes.', 'icon_path' => '/icons/cycling.svg'],
+                ['name' => 'Running', 'description' => 'A fundamental sport that improves cardiovascular health and can be done anywhere.', 'icon_path' => '/icons/running.svg'],
+                ['name' => 'Volleyball', 'description' => 'A team sport played on a court with a net, requiring coordination and teamwork.', 'icon_path' => '/icons/volleyball.svg'],
+                ['name' => 'Baseball', 'description' => 'America\'s pastime, a bat-and-ball game played between two teams of nine players.', 'icon_path' => '/icons/baseball.svg'],
+                ['name' => 'Soccer', 'description' => 'A team sport played with feet, emphasizing ball control and strategic play.', 'icon_path' => '/icons/soccer.svg'],
+                ['name' => 'Golf', 'description' => 'A precision sport played on a course, requiring focus and technique.', 'icon_path' => '/icons/golf.svg'],
+            ];
+
+            $gameTypes = collect();
+            foreach ($sports as $sport) {
+                $gameTypes->push(GameType::create($sport));
+            }
+            echo "✅ Created {$gameTypes->count()} game types\n";
+        } else {
+            $gameTypes = GameType::all();
+            echo "✅ Found {$gameTypes->count()} existing game types\n";
         }
 
-        // Truncate tables in correct order
-        DB::table('game_event_participants')->truncate();
-        DB::table('likes')->truncate();
-        DB::table('comments')->truncate();
-        DB::table('discussions')->truncate();
-        DB::table('game_events')->truncate();
-        DB::table('users')->truncate();
-        DB::table('game_types')->truncate();
-
-        // Re-enable foreign key checks for MySQL
-        if (DB::connection()->getDriverName() === 'mysql') {
-            DB::statement('SET FOREIGN_KEY_CHECKS=1');
-        }
-    }
-
-    private function createSportTypes(): void
-    {
-        $sports = [
-            ['name' => 'Basketball', 'description' => 'Team sport played with a ball and hoop', 'icon_path' => 'basketball.png'],
-            ['name' => 'Football', 'description' => 'Soccer - the beautiful game', 'icon_path' => 'football.png'],
-            ['name' => 'Tennis', 'description' => 'Racket sport for singles or doubles', 'icon_path' => 'tennis.png'],
-            ['name' => 'Swimming', 'description' => 'Water-based fitness and competition', 'icon_path' => 'swimming.png'],
-            ['name' => 'Cycling', 'description' => 'Road and mountain biking', 'icon_path' => 'cycling.png'],
-            ['name' => 'Running', 'description' => 'Track, road, and trail running', 'icon_path' => 'running.png'],
-            ['name' => 'Volleyball', 'description' => 'Team sport with net and ball', 'icon_path' => 'volleyball.png'],
-            ['name' => 'Badminton', 'description' => 'Racket sport with shuttlecock', 'icon_path' => 'badminton.png'],
-            ['name' => 'Table Tennis', 'description' => 'Indoor table tennis', 'icon_path' => 'table-tennis.png'],
-            ['name' => 'Cricket', 'description' => 'Bat and ball team sport', 'icon_path' => 'cricket.png'],
-            ['name' => 'Hockey', 'description' => 'Field hockey with sticks', 'icon_path' => 'hockey.png'],
-            ['name' => 'Rugby', 'description' => 'Contact team sport', 'icon_path' => 'rugby.png'],
-            ['name' => 'Golf', 'description' => 'Precision club and ball sport', 'icon_path' => 'golf.png'],
-            ['name' => 'Boxing', 'description' => 'Combat sport with gloves', 'icon_path' => 'boxing.png'],
-            ['name' => 'Martial Arts', 'description' => 'Various fighting disciplines', 'icon_path' => 'martial-arts.png'],
-        ];
-
-        foreach ($sports as $sport) {
-            GameType::create($sport);
-        }
-    }
-
-    private function createUsers(): void
-    {
-        // Create test user
-        User::create([
-            'first_name' => 'John',
-            'last_name' => 'Doe',
-            'email' => 'john@example.com',
-            'password' => Hash::make('password'),
-            'location' => 'London, UK',
-            'gender' => 'male',
-            'date_of_birth' => '1990-05-15',
-            'bio' => 'Passionate sports enthusiast and community organizer',
-            'phone' => '+44 7911 123456',
-            'profile_picture' => 'https://ui-avatars.com/api/?name=John+Doe&background=random',
-            'is_active' => true,
-            'email_verified_at' => now(),
-            'last_login_at' => now(),
-        ]);
-
-        // Create additional users
-        $users = [
-            ['first_name' => 'Sarah', 'last_name' => 'Johnson', 'email' => 'sarah@example.com', 'location' => 'Manchester, UK'],
-            ['first_name' => 'Mike', 'last_name' => 'Rodriguez', 'email' => 'mike@example.com', 'location' => 'Birmingham, UK'],
-            ['first_name' => 'Emily', 'last_name' => 'Zhang', 'email' => 'emily@example.com', 'location' => 'Liverpool, UK'],
-            ['first_name' => 'David', 'last_name' => 'Kim', 'email' => 'david@example.com', 'location' => 'Leeds, UK'],
-            ['first_name' => 'Lisa', 'last_name' => 'Brown', 'email' => 'lisa@example.com', 'location' => 'Sheffield, UK'],
-            ['first_name' => 'Carlos', 'last_name' => 'Martinez', 'email' => 'carlos@example.com', 'location' => 'Bristol, UK'],
-            ['first_name' => 'Anna', 'last_name' => 'Wilson', 'email' => 'anna@example.com', 'location' => 'Newcastle, UK'],
-            ['first_name' => 'James', 'last_name' => 'Taylor', 'email' => 'james@example.com', 'location' => 'Cardiff, UK'],
-            ['first_name' => 'Maria', 'last_name' => 'Garcia', 'email' => 'maria@example.com', 'location' => 'Edinburgh, UK'],
-            ['first_name' => 'Tom', 'last_name' => 'Anderson', 'email' => 'tom@example.com', 'location' => 'Glasgow, UK'],
-            ['first_name' => 'Sophie', 'last_name' => 'Clark', 'email' => 'sophie@example.com', 'location' => 'Nottingham, UK'],
-            ['first_name' => 'Alex', 'last_name' => 'White', 'email' => 'alex@example.com', 'location' => 'Oxford, UK'],
-            ['first_name' => 'Emma', 'last_name' => 'Davis', 'email' => 'emma@example.com', 'location' => 'Cambridge, UK'],
-            ['first_name' => 'Ryan', 'last_name' => 'Miller', 'email' => 'ryan@example.com', 'location' => 'York, UK'],
-            ['first_name' => 'Chloe', 'last_name' => 'Thompson', 'email' => 'chloe@example.com', 'location' => 'Brighton, UK'],
-            ['first_name' => 'Daniel', 'last_name' => 'Harris', 'email' => 'daniel@example.com', 'location' => 'Bath, UK'],
-            ['first_name' => 'Grace', 'last_name' => 'Lewis', 'email' => 'grace@example.com', 'location' => 'Chester, UK'],
-            ['first_name' => 'Oliver', 'last_name' => 'Walker', 'email' => 'oliver@example.com', 'location' => 'Durham, UK'],
-            ['first_name' => 'Isabella', 'last_name' => 'Hall', 'email' => 'isabella@example.com', 'location' => 'Canterbury, UK'],
-            ['first_name' => 'Lucas', 'last_name' => 'Young', 'email' => 'lucas@example.com', 'location' => 'Worcester, UK'],
-        ];
-
-        foreach ($users as $userData) {
-            User::create([
-                'first_name' => $userData['first_name'],
-                'last_name' => $userData['last_name'],
-                'email' => $userData['email'],
+        // Create test users (john@example.com and test@example.com)
+        echo "👥 Creating test users...\n";
+        $john = User::firstOrCreate(
+            ['email' => 'john@example.com'],
+            [
+                'first_name' => 'John',
+                'last_name' => 'Doe',
                 'password' => Hash::make('password'),
-                'location' => $userData['location'],
-                'gender' => fake()->randomElement(['male', 'female', 'other']),
-                'date_of_birth' => fake()->dateTimeBetween('-50 years', '-18 years')->format('Y-m-d'),
-                'bio' => fake()->paragraph(),
-                'phone' => fake()->phoneNumber(),
-                'profile_picture' => "https://ui-avatars.com/api/?name={$userData['first_name']}+{$userData['last_name']}&background=random",
+                'location' => 'London, UK',
+                'gender' => 'male',
+                'date_of_birth' => '1990-05-15',
+                'bio' => 'Passionate sports enthusiast and community organizer',
+                'phone' => '+44 7911 123456',
+                'profile_picture' => 'https://ui-avatars.com/api/?name=John+Doe&background=random',
                 'is_active' => true,
                 'email_verified_at' => now(),
-                'last_login_at' => fake()->dateTimeBetween('-30 days', 'now'),
-            ]);
+                'last_login_at' => now(),
+                'is_online' => false,
+            ]
+        );
+
+        $test = User::firstOrCreate(
+            ['email' => 'test@example.com'],
+            [
+                'first_name' => 'Test',
+                'last_name' => 'User',
+                'password' => Hash::make('password123'),
+                'location' => 'London, UK',
+                'gender' => 'male',
+                'date_of_birth' => '1990-05-15',
+                'bio' => 'Test user for development',
+                'phone' => '+44 7911 123456',
+                'profile_picture' => 'https://ui-avatars.com/api/?name=Test+User&background=random',
+                'is_active' => true,
+                'email_verified_at' => now(),
+                'last_login_at' => now(),
+                'is_online' => false,
+            ]
+        );
+
+        echo "✅ Test users ready: john@example.com and test@example.com\n";
+
+        // Create additional users if needed
+        if (User::count() < 22) {
+            echo "👥 Creating additional users...\n";
+            $additionalUsers = User::factory(22 - User::count())->create();
+            echo "✅ Created " . $additionalUsers->count() . " additional users\n";
         }
-    }
 
-    private function createGameEvents(): void
-    {
-        $users = User::all();
-        $gameTypes = GameType::all();
-        $venues = [
-            'Community Center', 'Sports Complex', 'Local Park', 'University Gym', 'Recreation Center',
-            'Tennis Club', 'Swimming Pool', 'Football Field', 'Basketball Court', 'Athletics Track',
-            'Golf Course', 'Boxing Gym', 'Martial Arts Dojo', 'Cricket Ground', 'Rugby Club'
-        ];
+        $allUsers = User::all();
+        echo "✅ Total users: {$allUsers->count()}\n";
 
-        for ($i = 0; $i < 30; $i++) {
-            $startDate = fake()->dateTimeBetween('now', '+30 days');
-            $gameType = $gameTypes->random();
-            $organiser = $users->random();
+        // Create Game Events
+        echo "🎮 Creating game events...\n";
+        $gameEvents = GameEvent::factory(15)->create([
+            'organiser_id' => $allUsers->random()->id,
+            'game_type_id' => $gameTypes->random()->id,
+        ]);
+        echo "✅ Created {$gameEvents->count()} game events\n";
 
-            GameEvent::create([
-                'game_type_id' => $gameType->id,
-                'organiser_id' => $organiser->id,
-                'location' => fake()->randomElement($venues),
-                'starts_at' => $startDate,
-                'skill_level' => rand(1, 3),
-                'max_participants' => fake()->optional(0.8)->numberBetween(4, 20),
-                'waiting_list_enabled' => fake()->boolean(70),
-                'notes' => fake()->optional(0.7)->paragraph(),
-                'venue_booked' => fake()->boolean(80),
-            ]);
-        }
-    }
+        // Create Discussions
+        echo "💬 Creating discussions...\n";
+        $discussions = Discussion::factory(25)->create([
+            'user_id' => $allUsers->random()->id,
+            'game_type_id' => $gameTypes->random()->id,
+        ]);
+        echo "✅ Created {$discussions->count()} discussions\n";
 
-    private function createDiscussions(): void
-    {
-        $users = User::all();
-        $topics = [
-            'Best protein powder recommendations?',
-            'Recovery tips after intense workouts',
-            'Morning vs evening workout routines',
-            'How to improve basketball shooting accuracy',
-            'Swimming technique tips for beginners',
-            'Best running shoes for long distances',
-            'Tennis serve improvement techniques',
-            'Cycling safety tips for beginners',
-            'Football training drills for midfielders',
-            'Martial arts for self-defense',
-            'Golf swing improvement advice',
-            'Volleyball team coordination strategies',
-            'Badminton footwork drills',
-            'Table tennis serve techniques',
-            'Cricket batting tips for beginners',
-            'Hockey stick handling skills',
-            'Rugby tackling techniques',
-            'Boxing combination drills',
-            'Golf putting tips',
-            'Martial arts belt progression',
-            'Swimming breathing techniques',
-            'Running injury prevention',
-            'Basketball defense strategies',
-            'Tennis doubles positioning',
-            'Cycling hill climbing tips'
-        ];
+        // Create Comments
+        echo "💭 Creating comments...\n";
+        $comments = Comment::factory(50)->create([
+            'user_id' => $allUsers->random()->id,
+            'discussion_id' => $discussions->random()->id,
+        ]);
+        echo "✅ Created {$comments->count()} comments\n";
 
-        $bodies = [
-            "I've been trying different protein powders but haven't found one that mixes well and doesn't have that chalky taste. Any recommendations for something that's both effective and palatable?",
-            "After my intense cardio sessions, I've been feeling more tired than usual. I'm wondering if I'm missing something in my recovery routine. What do you all do for post-workout recovery?",
-            "I'm trying to establish a consistent workout routine but can't decide between morning and evening workouts. What time works better for building habits and seeing results?",
-            "I've been practicing my shooting but my accuracy isn't improving. Any specific drills or techniques that helped you improve your basketball shooting?",
-            "Just started swimming lessons and I'm struggling with my breathing technique. Any tips for beginners on how to coordinate breathing with strokes?",
-            "I love Brooks Ghost for long distances - they provide excellent cushioning and support.",
-            "Practice your toss consistently and try the continental grip for better control.",
-            "Always wear a helmet, use lights at night, and follow traffic rules. Safety first!",
-            "Work on your passing accuracy and vision. Practice with cones to improve your spatial awareness.",
-            "Krav Maga is excellent for self-defense - it's practical and focuses on real-world scenarios.",
-            "Focus on your grip and stance. The fundamentals are key to a consistent swing.",
-            "Communication is crucial. Use hand signals and call the ball clearly.",
-            "Practice shadow footwork drills and focus on staying on your toes.",
-            "Learn the basic topspin and backspin serves first - they're most effective for beginners.",
-            "Focus on your stance and watch the ball closely. Timing is everything in batting.",
-            "Practice stick handling with cones and work on your wrist movement.",
-            "Keep your head up, wrap your arms around the ball carrier, and drive through with your legs.",
-            "Shadow boxing with a mirror helps improve form and speed.",
-            "Practice distance control with different length putts. Speed is more important than line.",
-            "It varies by discipline, but typically 3-6 months between belts for beginners.",
-            "Try breathing every 3 strokes for freestyle - it helps establish a rhythm.",
-            "Gradual progression, proper shoes, and listening to your body are key.",
-            "Stay low, move your feet, and keep your hands up. Anticipation is crucial.",
-            "One up, one back positioning works well for most doubles situations.",
-            "Use lower gears, maintain a steady cadence, and practice on smaller hills first."
-        ];
+        // Create Likes
+        echo "👍 Creating likes...\n";
+        $likes = Like::factory(100)->create([
+            'user_id' => $allUsers->random()->id,
+            'likeable_id' => $discussions->random()->id,
+            'likeable_type' => Discussion::class,
+        ]);
+        echo "✅ Created {$likes->count()} likes\n";
 
-        for ($i = 0; $i < 25; $i++) {
-            $user = $users->random();
-            $topic = $topics[$i % count($topics)];
-            $body = $bodies[$i % count($bodies)];
+        // Create Conversations
+        echo "💬 Creating conversations...\n";
+        $conversations = Conversation::factory(10)->create();
+        echo "✅ Created {$conversations->count()} conversations\n";
 
-            Discussion::create([
-                'title' => $topic,
-                'body' => $body,
-                'user_id' => $user->id,
-                'created_at' => fake()->dateTimeBetween('-30 days', 'now'),
-                'updated_at' => fake()->dateTimeBetween('-30 days', 'now'),
-            ]);
-        }
-    }
+        // Create Conversation Participants
+        echo "👥 Creating conversation participants...\n";
+        foreach ($conversations as $conversation) {
+            $participantCount = rand(2, 5);
+            $selectedUsers = $allUsers->random($participantCount);
 
-    private function createComments(): void
-    {
-        $users = User::all();
-        $discussions = Discussion::all();
-        $comments = [
-            "Great question! I've been using Optimum Nutrition Gold Standard and it mixes really well with just water or milk.",
-            "I've found that stretching and foam rolling after intense workouts really helps with recovery. Also, make sure you're getting enough protein within 30 minutes.",
-            "I prefer morning workouts because it sets a positive tone for the day and I'm less likely to skip them.",
-            "Try the Mikan drill - it's great for improving shooting form and consistency.",
-            "Focus on exhaling underwater and inhaling when your head is above water. Start with basic breathing drills.",
-            "I love Brooks Ghost for long distances - they provide excellent cushioning and support.",
-            "Practice your toss consistently and try the continental grip for better control.",
-            "Always wear a helmet, use lights at night, and follow traffic rules. Safety first!",
-            "Work on your passing accuracy and vision. Practice with cones to improve your spatial awareness.",
-            "Krav Maga is excellent for self-defense - it's practical and focuses on real-world scenarios.",
-            "Focus on your grip and stance. The fundamentals are key to a consistent swing.",
-            "Communication is crucial. Use hand signals and call the ball clearly.",
-            "Practice shadow footwork drills and focus on staying on your toes.",
-            "Learn the basic topspin and backspin serves first - they're most effective for beginners.",
-            "Focus on your stance and watch the ball closely. Timing is everything in batting.",
-            "Practice stick handling with cones and work on your wrist movement.",
-            "Keep your head up, wrap your arms around the ball carrier, and drive through with your legs.",
-            "Shadow boxing with a mirror helps improve form and speed.",
-            "Practice distance control with different length putts. Speed is more important than line.",
-            "It varies by discipline, but typically 3-6 months between belts for beginners.",
-            "Try breathing every 3 strokes for freestyle - it helps establish a rhythm.",
-            "Gradual progression, proper shoes, and listening to your body are key.",
-            "Stay low, move your feet, and keep your hands up. Anticipation is crucial.",
-            "One up, one back positioning works well for most doubles situations.",
-            "Use lower gears, maintain a steady cadence, and practice on smaller hills first."
-        ];
-
-        foreach ($discussions as $discussion) {
-            $commentCount = rand(2, 8);
-            for ($i = 0; $i < $commentCount; $i++) {
-                $user = $users->random();
-                $comment = $comments[array_rand($comments)];
-
-                Comment::create([
-                    'body' => $comment,
+            foreach ($selectedUsers as $user) {
+                ConversationParticipant::factory()->create([
+                    'conversation_id' => $conversation->id,
                     'user_id' => $user->id,
-                    'discussion_id' => $discussion->id,
-                    'created_at' => fake()->dateTimeBetween($discussion->created_at, 'now'),
-                    'updated_at' => fake()->dateTimeBetween($discussion->created_at, 'now'),
                 ]);
             }
         }
-    }
+        echo "✅ Created conversation participants\n";
 
-    private function createLikes(): void
-    {
-        $users = User::all();
-        $discussions = Discussion::all();
+        // Create Messages
+        echo "💬 Creating messages...\n";
+        $messages = Message::factory(80)->create([
+            'conversation_id' => $conversations->random()->id,
+            'user_id' => $allUsers->random()->id,
+        ]);
+        echo "✅ Created {$messages->count()} messages\n";
 
-        foreach ($discussions as $discussion) {
-            $likeCount = rand(0, 15);
-            $randomUsers = $users->random($likeCount);
+        // Create Game Event Participants
+        echo "🎯 Creating game event participants...\n";
+        foreach ($gameEvents as $gameEvent) {
+            $participantCount = rand(3, 8);
+            $selectedUsers = $allUsers->random($participantCount);
 
-            foreach ($randomUsers as $user) {
-                Like::create([
+            foreach ($selectedUsers as $user) {
+                GameEventParticipant::factory()->create([
+                    'game_event_id' => $gameEvent->id,
                     'user_id' => $user->id,
-                    'likeable_type' => Discussion::class,
-                    'likeable_id' => $discussion->id,
                 ]);
             }
         }
-    }
+        echo "✅ Created game event participants\n";
 
-    private function createEventParticipants(): void
-    {
-        $users = User::all();
-        $events = GameEvent::all();
+        // Create User Skill Levels
+        echo "🏆 Creating user skill levels...\n";
+        foreach ($allUsers as $user) {
+            $skillCount = rand(1, 3);
+            $selectedGameTypes = $gameTypes->random($skillCount);
 
-        foreach ($events as $event) {
-            $participantCount = rand(1, min($event->max_participants ?? 10, 10));
-            $randomUsers = $users->random($participantCount);
-
-            foreach ($randomUsers as $user) {
-                // Skip if user is already the organiser
-                if ($user->id === $event->organiser_id) {
-                    continue;
-                }
-
-                GameEventParticipant::create([
-                    'game_event_id' => $event->id,
+            foreach ($selectedGameTypes as $gameType) {
+                UserSkillLevel::firstOrCreate([
                     'user_id' => $user->id,
-                    'is_waiting' => fake()->boolean(20), // 20% chance of being on waiting list
+                    'game_type_id' => $gameType->id,
+                ], [
+                    'skill_level' => fake()->randomElement(['beginner', 'intermediate', 'advanced', 'expert']),
                 ]);
             }
         }
+        echo "✅ Created user skill levels\n";
+
+        // Create User Preferred Facilities
+        echo "🏟️ Creating user preferred facilities...\n";
+        foreach ($allUsers as $user) {
+            $facilityCount = rand(1, 2);
+
+            for ($i = 0; $i < $facilityCount; $i++) {
+                $facilityTypes = [
+                    'Central Park Sports Complex',
+                    'Downtown Recreation Center',
+                    'Riverside Athletic Club',
+                    'Community Sports Hub',
+                    'Elite Training Center',
+                    'Neighborhood Gym',
+                    'University Sports Center',
+                    'Professional Sports Arena',
+                    'Outdoor Sports Park',
+                    'Indoor Sports Facility',
+                ];
+
+                $facility = fake()->randomElement($facilityTypes);
+                $city = fake()->city();
+                $state = fake()->state();
+                $facilityId = 'facility_' . strtolower(str_replace(' ', '_', $facility));
+
+                UserPreferredFacility::firstOrCreate([
+                    'user_id' => $user->id,
+                    'facility_id' => $facilityId,
+                ], [
+                    'facility_name' => $facility,
+                    'facility_address' => fake()->streetAddress() . ', ' . $city . ', ' . $state,
+                    'latitude' => fake()->latitude(),
+                    'longitude' => fake()->longitude(),
+                    'membership_type' => fake()->randomElement(['member', 'pay-per-use', 'other']),
+                ]);
+            }
+        }
+        echo "✅ Created user preferred facilities\n";
+
+        // Create Tournaments
+        echo "🏆 Creating tournaments...\n";
+        $tournaments = Tournament::factory(8)->create([
+            'organiser_id' => $allUsers->random()->id,
+            'game_type_id' => $gameTypes->random()->id,
+            'approved_by' => $allUsers->random()->id,
+        ]);
+        echo "✅ Created {$tournaments->count()} tournaments\n";
+
+        // Create Tournament Brackets
+        echo "🏆 Creating tournament brackets...\n";
+        foreach ($tournaments as $tournament) {
+            $bracketCount = rand(1, 3);
+
+            for ($i = 0; $i < $bracketCount; $i++) {
+                TournamentBracket::factory()->create([
+                    'tournament_id' => $tournament->id,
+                ]);
+            }
+        }
+        echo "✅ Created tournament brackets\n";
+
+        // Create Tournament Matches
+        echo "🏆 Creating tournament matches...\n";
+        foreach ($tournaments as $tournament) {
+            $matchCount = rand(4, 12);
+
+            for ($i = 0; $i < $matchCount; $i++) {
+                TournamentMatch::factory()->create([
+                    'tournament_id' => $tournament->id,
+                    'bracket_id' => $tournament->brackets->random()->id,
+                    'player1_id' => $allUsers->random()->id,
+                    'player2_id' => $allUsers->random()->id,
+                ]);
+            }
+        }
+        echo "✅ Created tournament matches\n";
+
+        // Create Communities
+        echo "🏘️ Creating communities...\n";
+        $communities = Community::factory(6)->create();
+        echo "✅ Created {$communities->count()} communities\n";
+
+        // Create Typing Indicators
+        echo "⌨️ Creating typing indicators...\n";
+        for ($i = 0; $i < 5; $i++) {
+            TypingIndicator::firstOrCreate([
+                'user_id' => $allUsers->random()->id,
+                'context_id' => $conversations->random()->id,
+                'context_type' => Conversation::class,
+            ], [
+                'started_at' => fake()->dateTimeBetween('-5 minutes', 'now'),
+                'expires_at' => fake()->dateTimeBetween('now', '+5 minutes'),
+            ]);
+        }
+        echo "✅ Created typing indicators\n";
+
+        echo "\n🎉 Database seeding completed successfully!\n";
+        echo "📊 Final counts:\n";
+        echo "   - Users: " . User::count() . "\n";
+        echo "   - Game Types: " . GameType::count() . "\n";
+        echo "   - Game Events: " . GameEvent::count() . "\n";
+        echo "   - Discussions: " . Discussion::count() . "\n";
+        echo "   - Comments: " . Comment::count() . "\n";
+        echo "   - Likes: " . Like::count() . "\n";
+        echo "   - Conversations: " . Conversation::count() . "\n";
+        echo "   - Messages: " . Message::count() . "\n";
+        echo "   - Game Event Participants: " . GameEventParticipant::count() . "\n";
+        echo "   - User Skill Levels: " . UserSkillLevel::count() . "\n";
+        echo "   - User Preferred Facilities: " . UserPreferredFacility::count() . "\n";
+        echo "   - Tournaments: " . Tournament::count() . "\n";
+        echo "   - Tournament Brackets: " . TournamentBracket::count() . "\n";
+        echo "   - Tournament Matches: " . TournamentMatch::count() . "\n";
+        echo "   - Communities: " . Community::count() . "\n";
+        echo "   - Typing Indicators: " . TypingIndicator::count() . "\n";
+
+        echo "\n🔑 Test Credentials:\n";
+        echo "   - john@example.com / password\n";
+        echo "   - test@example.com / password123\n";
+        echo "\n✅ Both users are email verified and ready to use!\n";
     }
 }

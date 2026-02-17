@@ -24,6 +24,15 @@ class UnifiedAuthController extends Controller
     public function authenticate(Request $request)
     {
         try {
+            // Log authentication attempt for debugging (especially TestFlight)
+            Log::info('Authentication attempt', [
+                'auth_type' => $request->input('auth_type'),
+                'email' => $request->input('credentials.email') ?? 'N/A',
+                'user_agent' => $request->header('User-Agent'),
+                'origin' => $request->header('Origin'),
+                'ip' => $request->ip(),
+            ]);
+
             // Validate request
             $validator = Validator::make($request->all(), [
                 'auth_type' => 'integer|min:1|max:4',
@@ -59,7 +68,33 @@ class UnifiedAuthController extends Controller
 
             if ($result->isSuccessful()) {
                 $user = $result->getUser();
-                $token = $result->getToken();
+                $tokenString = $result->getToken();
+
+                // The EmailAuthAdapter already creates a token via createToken()
+                // We need to get the token model to access the ID
+                // Get the most recent token for this user (the one just created)
+                $tokenModel = $user->tokens()->where('name', 'auth-token')->latest()->first();
+                
+                // If token model not found (shouldn't happen), use token string as fallback
+                if (!$tokenModel) {
+                    // This is a fallback - the token was created but we can't find the model
+                    // Use a placeholder ID and the actual token string
+                    $tokenModelId = 0; // Placeholder - token will still work
+                    $accessToken = $tokenString;
+                } else {
+                    $accessToken = $tokenString; // Use the token from AuthResult
+                    $tokenModelId = $tokenModel->id;
+                }
+
+                // Log authentication success for debugging (especially TestFlight)
+                Log::info('Authentication successful', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'auth_type' => $authTypeValue,
+                    'user_agent' => $request->header('User-Agent'),
+                    'origin' => $request->header('Origin'),
+                    'ip' => $request->ip(),
+                ]);
 
                 return response()->json([
                     'success' => true,
@@ -82,10 +117,10 @@ class UnifiedAuthController extends Controller
                             'main_goal' => $user->main_goal,
                         ],
                         'token' => [
-                            'accessTokenId' => $token,
+                            'accessTokenId' => $tokenModelId,
                             'tokenType' => 'Bearer',
                             'expiresIn' => 60 * 24 * 30, // 30 days
-                            'accessToken' => $token,
+                            'accessToken' => $accessToken,
                         ]
                     ]
                 ]);
@@ -123,7 +158,6 @@ class UnifiedAuthController extends Controller
 
             case AuthType::GOOGLE:
             case AuthType::FACEBOOK:
-            case AuthType::APPLE:
                 $rules = [
                     'access_token' => 'required|string',
                     'provider_id' => 'required|string',
@@ -131,6 +165,19 @@ class UnifiedAuthController extends Controller
                     'profile.email' => 'required|email',
                     'profile.first_name' => 'required|string',
                     'profile.last_name' => 'required|string',
+                ];
+                break;
+
+            case AuthType::APPLE:
+                // Apple Sign In: email and name are optional (only provided on first sign-in)
+                // Users can also choose to hide their email
+                $rules = [
+                    'access_token' => 'required|string',
+                    'provider_id' => 'required|string',
+                    'profile' => 'array',
+                    'profile.email' => 'nullable|email', // Optional - user can hide email
+                    'profile.first_name' => 'nullable|string', // Optional - only on first sign-in
+                    'profile.last_name' => 'nullable|string', // Optional - only on first sign-in
                 ];
                 break;
         }

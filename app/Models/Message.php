@@ -13,13 +13,13 @@ class Message extends Model
         'conversation_id',
         'user_id',
         'content',
-        'read_at'
+        'read_at',
     ];
 
     protected $casts = [
         'conversation_id' => 'integer',
         'user_id' => 'integer',
-        'read_at' => 'datetime'
+        'read_at' => 'datetime',
     ];
 
     public function conversation()

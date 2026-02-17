@@ -7,6 +7,11 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:api')->group(function () {
     Route::get('/discussions', [DiscussionController::class, 'index']);
     Route::post('/discussions', [DiscussionController::class, 'store']);
+    
+    // Specific routes (must come before parameterized routes)
+    Route::get('/discussions/available-game-types', [DiscussionController::class, 'availableGameTypes']);
+    Route::get('/discussions/trending/topics', [DiscussionController::class, 'trendingTopics']);
+    
     Route::get('/discussions/{discussion}', [DiscussionController::class, 'show']);
     Route::put('/discussions/{discussion}', [DiscussionController::class, 'update']);
     Route::delete('/discussions/{discussion}', [DiscussionController::class, 'destroy']);
@@ -24,7 +29,5 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/discussions/{discussion}/likes', [DiscussionController::class, 'like']);
     Route::delete('/discussions/{discussion}/likes', [DiscussionController::class, 'unlike']);
 
-    // Trending topics
-    Route::get('/discussions/trending/topics', [DiscussionController::class, 'trendingTopics']);
 });
 

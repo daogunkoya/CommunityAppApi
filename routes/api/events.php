@@ -13,5 +13,9 @@ Route::middleware('auth:api')->group(function () {
     Route::delete('/events/{event}', [GameEventController::class, 'destroy']);
     Route::post('/events/{event}/join', [GameEventController::class, 'join']);
     Route::delete('/events/{event}/leave', [GameEventController::class, 'leave']);
-});
 
+    // Game event comments
+    Route::get('/events/{event}/comments', [GameEventController::class, 'getComments']);
+    Route::post('/events/{event}/comments', [GameEventController::class, 'addComment']);
+    Route::delete('/events/{event}/comments/{commentId}', [GameEventController::class, 'deleteComment']);
+});

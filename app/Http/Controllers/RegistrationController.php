@@ -49,11 +49,11 @@ class RegistrationController extends Controller
     }
 
     /**
-     * Get available sports/game types
+     * Get available sports/game types (same as /game-types for consistency with Profile > My interests).
      */
     public function getSports()
     {
-        $sports = GameType::orderBy('name')->get(['id', 'name']);
+        $sports = GameType::orderBy('name')->get(['id', 'name', 'description', 'icon_path', 'color']);
 
         return response()->json([
             'success' => true,
@@ -168,16 +168,16 @@ class RegistrationController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'fullName' => 'required|string|max:255',
-            'dateOfBirth' => 'required|date|before:today|after:1900-01-01',
-            'gender' => 'required|in:male,female,prefer-not-to-say',
-            'location' => 'required|string',
+            'dateOfBirth' => 'required|date|before:13 years ago|after:1900-01-01',
+            'gender' => 'nullable|in:male,female,prefer-not-to-say,prefer_not_to_say',
+            'location' => 'nullable|string',
             'radius' => 'integer|min:1|max:50',
             'selectedSports' => 'required|array|min:1',
             'selectedSports.*' => 'exists:game_types,id',
             'skillLevels' => 'required|array',
             'skillLevels.*' => 'in:beginner,intermediate,advanced,expert',
             'mainGoal' => 'required|string',
-            'email' => 'required|email',
+            'email' => 'required|email|unique:users,email',
             'password' => 'required_if:authProvider,email|string|min:8',
             'authProvider' => 'required|in:email,facebook,google,apple',
             'authProviderId' => 'nullable|string',
@@ -198,7 +198,7 @@ class RegistrationController extends Controller
             $formattedAddress = $request->input('location');
 
             // Geocode the location if Google Maps service is available
-            if ($googleMapsService) {
+            if ($googleMapsService && $request->input('location') && $request->input('location') !== '') {
                 $geocodeResult = $googleMapsService->geocodeAddress($request->input('location'));
 
                 if ($geocodeResult) {
@@ -220,11 +220,9 @@ class RegistrationController extends Controller
                 // User exists, update their profile with the new data
                 Log::info('Updating existing user profile', ['user_id' => $user->id, 'email' => $user->email]);
 
-                $user->update([
+                $updateData = [
                     'first_name' => $firstName,
                     'last_name' => $lastName,
-                    'date_of_birth' => $request->input('dateOfBirth'),
-                    'gender' => $request->input('gender'),
                     'location' => $formattedAddress,
                     'latitude' => $latitude,
                     'longitude' => $longitude,
@@ -233,7 +231,17 @@ class RegistrationController extends Controller
                     'auth_provider' => $request->input('authProvider'),
                     'auth_provider_id' => $request->input('authProviderId'),
                     'email_verified_at' => now(), // Auto-verify for now
-                ]);
+                ];
+
+                // Only update optional fields if provided
+                if ($request->has('dateOfBirth') && $request->input('dateOfBirth')) {
+                    $updateData['date_of_birth'] = $request->input('dateOfBirth');
+                }
+                if ($request->has('gender') && $request->input('gender')) {
+                    $updateData['gender'] = $request->input('gender');
+                }
+
+                $user->update($updateData);
 
                 // Clear existing skill levels and create new ones
                 $user->skillLevels()->delete();
@@ -246,13 +254,11 @@ class RegistrationController extends Controller
                 }
 
                 // Create new user
-                $user = User::create([
+                $userData = [
                     'first_name' => $firstName,
                     'last_name' => $lastName,
                     'email' => $request->input('email'),
                     'password' => Hash::make($password),
-                    'date_of_birth' => $request->input('dateOfBirth'),
-                    'gender' => $request->input('gender'),
                     'location' => $formattedAddress,
                     'latitude' => $latitude,
                     'longitude' => $longitude,
@@ -261,7 +267,17 @@ class RegistrationController extends Controller
                     'auth_provider' => $request->input('authProvider'),
                     'auth_provider_id' => $request->input('authProviderId'),
                     'email_verified_at' => now(), // Auto-verify for now
-                ]);
+                ];
+
+                // Only add optional fields if provided
+                if ($request->has('dateOfBirth') && $request->input('dateOfBirth')) {
+                    $userData['date_of_birth'] = $request->input('dateOfBirth');
+                }
+                if ($request->has('gender') && $request->input('gender')) {
+                    $userData['gender'] = $request->input('gender');
+                }
+
+                $user = User::create($userData);
             }
 
             // Store user preferences - fix the mapping
@@ -278,9 +294,23 @@ class RegistrationController extends Controller
 
             if (!empty($skillLevelsData)) {
                 $user->skillLevels()->createMany($skillLevelsData);
+                // Also sync game_user_interest so gameInterests() is populated (used by
+                // available-game-types, discussions filter, create-game, etc.)
+                $skillLevelMap = [
+                    'beginner' => 1,
+                    'intermediate' => 2,
+                    'advanced' => 3,
+                    'expert' => 3,
+                ];
+                $syncData = [];
+                foreach ($request->input('selectedSports') as $sportId) {
+                    $skillKey = $request->input('skillLevels')[$sportId] ?? 'beginner';
+                    $syncData[(int) $sportId] = [
+                        'skill_level' => $skillLevelMap[strtolower($skillKey)] ?? 1,
+                    ];
+                }
+                $user->gameInterests()->sync($syncData);
             }
-
-
 
             // Generate token
             try {
@@ -342,8 +372,8 @@ class RegistrationController extends Controller
 
             // Check if user exists
             $user = User::where('auth_provider', $provider)
-                       ->where('auth_provider_id', $userData['id'])
-                       ->first();
+                ->where('auth_provider_id', $userData['id'])
+                ->first();
 
             if (!$user) {
                 // Create new user

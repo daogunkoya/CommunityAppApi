@@ -30,17 +30,17 @@ class RegistrationControllerTest extends TestCase
         $response = $this->getJson('/api/registration/sports');
 
         $response->assertStatus(200)
-                ->assertJson([
-                    'success' => true,
-                ])
-                ->assertJsonStructure([
-                    'data' => [
-                        '*' => [
-                            'id',
-                            'name',
-                        ],
+            ->assertJson([
+                'success' => true,
+            ])
+            ->assertJsonStructure([
+                'data' => [
+                    '*' => [
+                        'id',
+                        'name',
                     ],
-                ]);
+                ],
+            ]);
 
         $this->assertCount(3, $response->json('data'));
     }
@@ -52,7 +52,7 @@ class RegistrationControllerTest extends TestCase
     {
         $response = $this->postJson('/api/registration/register', [
             'fullName' => 'John Doe',
-            'age' => 25,
+            'dateOfBirth' => '2000-01-01',
             'gender' => 'male',
             'location' => 'London, UK',
             'radius' => 10,
@@ -68,45 +68,45 @@ class RegistrationControllerTest extends TestCase
         ]);
 
         $response->assertStatus(201)
-                ->assertJson([
-                    'success' => true,
-                    'message' => 'Registration successful',
-                ])
-                ->assertJsonStructure([
-                    'data' => [
-                        'user' => [
-                            'id',
-                            'first_name',
-                            'last_name',
-                            'email',
-                            'age',
-                            'gender',
-                            'location',
-                            'radius',
-                            'main_goal',
-                            'auth_provider',
-                            'skill_levels' => [
-                                '*' => [
+            ->assertJson([
+                'success' => true,
+                'message' => 'Registration successful',
+            ])
+            ->assertJsonStructure([
+                'data' => [
+                    'user' => [
+                        'id',
+                        'first_name',
+                        'last_name',
+                        'email',
+                        // 'age', // age is removed
+                        'gender',
+                        'location',
+                        'radius',
+                        'main_goal',
+                        'auth_provider',
+                        'skill_levels' => [
+                            '*' => [
+                                'id',
+                                'game_type_id',
+                                'skill_level',
+                                'game_type' => [
                                     'id',
-                                    'game_type_id',
-                                    'skill_level',
-                                    'game_type' => [
-                                        'id',
-                                        'name',
-                                    ],
+                                    'name',
                                 ],
                             ],
                         ],
-                        'token',
                     ],
-                ]);
+                    'token',
+                ],
+            ]);
 
         // Verify user was created
         $this->assertDatabaseHas('users', [
             'email' => 'john@example.com',
             'first_name' => 'John',
             'last_name' => 'Doe',
-            'age' => 25,
+            'date_of_birth' => '2000-01-01 00:00:00',
             'gender' => 'male',
             'location' => 'London, UK',
             'radius' => 10,
@@ -126,7 +126,7 @@ class RegistrationControllerTest extends TestCase
     {
         $response = $this->postJson('/api/registration/register', [
             'fullName' => 'Jane Smith',
-            'age' => 30,
+            'dateOfBirth' => '1995-01-01', // 30 years old
             'gender' => 'female',
             'location' => 'Manchester, UK',
             'radius' => 5,
@@ -142,9 +142,9 @@ class RegistrationControllerTest extends TestCase
         ]);
 
         $response->assertStatus(201)
-                ->assertJson([
-                    'success' => true,
-                ]);
+            ->assertJson([
+                'success' => true,
+            ]);
 
         $this->assertDatabaseHas('users', [
             'email' => 'jane@example.com',
@@ -161,11 +161,17 @@ class RegistrationControllerTest extends TestCase
         $response = $this->postJson('/api/registration/register', []);
 
         $response->assertStatus(422)
-                ->assertJsonValidationErrors([
-                    'fullName', 'age', 'gender', 'location',
-                    'selectedSports', 'skillLevels', 'mainGoal',
-                    'email', 'password', 'authProvider'
-                ]);
+            ->assertJsonValidationErrors([
+                'fullName',
+                'dateOfBirth',
+                'selectedSports',
+                'skillLevels',
+                'selectedSports',
+                'skillLevels',
+                'mainGoal',
+                'email',
+                'authProvider'
+            ]);
     }
 
     /**
@@ -175,7 +181,7 @@ class RegistrationControllerTest extends TestCase
     {
         $response = $this->postJson('/api/registration/register', [
             'fullName' => 'John Doe',
-            'age' => 5, // Too young
+            'dateOfBirth' => now()->subYears(5)->format('Y-m-d'), // 5 years old (Too young)
             'gender' => 'male',
             'location' => 'London, UK',
             'radius' => 10,
@@ -188,7 +194,7 @@ class RegistrationControllerTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-                ->assertJsonValidationErrors(['age']);
+            ->assertJsonValidationErrors(['dateOfBirth']);
     }
 
     /**
@@ -198,7 +204,7 @@ class RegistrationControllerTest extends TestCase
     {
         $response = $this->postJson('/api/registration/register', [
             'fullName' => 'John Doe',
-            'age' => 25,
+            'dateOfBirth' => '2000-01-01',
             'gender' => 'invalid_gender',
             'location' => 'London, UK',
             'radius' => 10,
@@ -211,7 +217,7 @@ class RegistrationControllerTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-                ->assertJsonValidationErrors(['gender']);
+            ->assertJsonValidationErrors(['gender']);
     }
 
     /**
@@ -221,7 +227,7 @@ class RegistrationControllerTest extends TestCase
     {
         $response = $this->postJson('/api/registration/register', [
             'fullName' => 'John Doe',
-            'age' => 25,
+            'dateOfBirth' => '2000-01-01',
             'gender' => 'male',
             'location' => 'London, UK',
             'radius' => 10,
@@ -234,7 +240,7 @@ class RegistrationControllerTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-                ->assertJsonValidationErrors(['skillLevels.1']);
+            ->assertJsonValidationErrors(['skillLevels.1']);
     }
 
     /**
@@ -246,7 +252,7 @@ class RegistrationControllerTest extends TestCase
 
         $response = $this->postJson('/api/registration/register', [
             'fullName' => 'John Doe',
-            'age' => 25,
+            'dateOfBirth' => '2000-01-01',
             'gender' => 'male',
             'location' => 'London, UK',
             'radius' => 10,
@@ -259,7 +265,7 @@ class RegistrationControllerTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-                ->assertJsonValidationErrors(['email']);
+            ->assertJsonValidationErrors(['email']);
     }
 
     /**
@@ -269,7 +275,7 @@ class RegistrationControllerTest extends TestCase
     {
         $response = $this->postJson('/api/registration/register', [
             'fullName' => 'John Doe',
-            'age' => 25,
+            'dateOfBirth' => '2000-01-01',
             'gender' => 'male',
             'location' => 'London, UK',
             'radius' => 10,
@@ -282,7 +288,7 @@ class RegistrationControllerTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-                ->assertJsonValidationErrors(['selectedSports.0']);
+            ->assertJsonValidationErrors(['selectedSports.0']);
     }
 
     /**
@@ -292,7 +298,7 @@ class RegistrationControllerTest extends TestCase
     {
         $response = $this->postJson('/api/registration/register', [
             'fullName' => 'John Doe',
-            'age' => 25,
+            'dateOfBirth' => '2000-01-01',
             'gender' => 'male',
             'location' => 'London, UK',
             'radius' => 10,
@@ -305,7 +311,7 @@ class RegistrationControllerTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-                ->assertJsonValidationErrors(['password']);
+            ->assertJsonValidationErrors(['password']);
     }
 
     /**
@@ -315,7 +321,7 @@ class RegistrationControllerTest extends TestCase
     {
         $response = $this->postJson('/api/registration/register', [
             'fullName' => 'John Doe',
-            'age' => 25,
+            'dateOfBirth' => '2000-01-01',
             'gender' => 'male',
             'location' => 'London, UK',
             'radius' => 10,
@@ -328,7 +334,7 @@ class RegistrationControllerTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-                ->assertJsonValidationErrors(['authProvider']);
+            ->assertJsonValidationErrors(['authProvider']);
     }
 
     /**
@@ -344,11 +350,11 @@ class RegistrationControllerTest extends TestCase
         // This might return 503 if Google Maps service is not configured
         // or 200 if it's working
         $response->assertStatus(200)
-                ->assertJsonStructure([
-                    'success',
-                    'data',
-                    'location',
-                ]);
+            ->assertJsonStructure([
+                'success',
+                'data',
+                'location',
+            ]);
     }
 
     /**
@@ -359,7 +365,7 @@ class RegistrationControllerTest extends TestCase
         $response = $this->postJson('/api/registration/facilities/search', []);
 
         $response->assertStatus(422)
-                ->assertJsonValidationErrors(['location']);
+            ->assertJsonValidationErrors(['location']);
 
         $response = $this->postJson('/api/registration/facilities/search', [
             'location' => 'London, UK',
@@ -367,6 +373,29 @@ class RegistrationControllerTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-                ->assertJsonValidationErrors(['radius']);
+            ->assertJsonValidationErrors(['radius']);
+    }
+
+    /**
+     * Test registration password required for email provider
+     */
+    public function test_registration_password_required_for_email_provider()
+    {
+        $response = $this->postJson('/api/registration/register', [
+            'fullName' => 'John Doe',
+            'dateOfBirth' => '2000-01-01',
+            'gender' => 'male',
+            'location' => 'London, UK',
+            'radius' => 10,
+            'selectedSports' => [1],
+            'skillLevels' => [1 => 'beginner'],
+            'mainGoal' => 'Make friends',
+            'email' => 'john@example.com',
+            // password missing
+            'authProvider' => 'email',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['password']);
     }
 }

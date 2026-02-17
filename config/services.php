@@ -52,6 +52,7 @@ return [
         'client_id' => env('APPLE_CLIENT_ID'),
         'client_secret' => env('APPLE_CLIENT_SECRET'),
         'redirect' => env('APPLE_REDIRECT_URI'),
+        'bundle_id' => env('APPLE_BUNDLE_ID', 'com.matchgrinder.mobile'),
     ],
 
 ];
