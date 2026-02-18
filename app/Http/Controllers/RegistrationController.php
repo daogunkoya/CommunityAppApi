@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use App\Http\Requests\Auth\RegisterUserRequest;
+use App\Actions\Auth\RegisterUserAction;
+use App\Http\Resources\UserResource;
 
 class RegistrationController extends Controller
 {
@@ -164,171 +167,20 @@ class RegistrationController extends Controller
     /**
      * Complete registration
      */
-    public function register(Request $request)
+    public function register(RegisterUserRequest $request, RegisterUserAction $action)
     {
-        $validator = Validator::make($request->all(), [
-            'fullName' => 'required|string|max:255',
-            'dateOfBirth' => 'required|date|before:13 years ago|after:1900-01-01',
-            'gender' => 'nullable|in:male,female,prefer-not-to-say,prefer_not_to_say',
-            'location' => 'nullable|string',
-            'radius' => 'integer|min:1|max:50',
-            'selectedSports' => 'required|array|min:1',
-            'selectedSports.*' => 'exists:game_types,id',
-            'skillLevels' => 'required|array',
-            'skillLevels.*' => 'in:beginner,intermediate,advanced,expert',
-            'mainGoal' => 'required|string',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required_if:authProvider,email|string|min:8',
-            'authProvider' => 'required|in:email,facebook,google,apple',
-            'authProviderId' => 'nullable|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
         try {
-            $googleMapsService = $this->getGoogleMapsService();
-            $latitude = null;
-            $longitude = null;
-            $formattedAddress = $request->input('location');
+            $user = $action->execute($request->validated());
 
-            // Geocode the location if Google Maps service is available
-            if ($googleMapsService && $request->input('location') && $request->input('location') !== '') {
-                $geocodeResult = $googleMapsService->geocodeAddress($request->input('location'));
-
-                if ($geocodeResult) {
-                    $latitude = $geocodeResult['latitude'] ?? null;
-                    $longitude = $geocodeResult['longitude'] ?? null;
-                    $formattedAddress = $geocodeResult['formatted_address'] ?? $request->input('location');
-                }
-            }
-
-            // Split full name into first and last name
-            $nameParts = explode(' ', trim($request->input('fullName')), 2);
-            $firstName = $nameParts[0] ?? '';
-            $lastName = $nameParts[1] ?? '';
-
-            // Check if user already exists
-            $user = User::where('email', $request->input('email'))->first();
-
-            if ($user) {
-                // User exists, update their profile with the new data
-                Log::info('Updating existing user profile', ['user_id' => $user->id, 'email' => $user->email]);
-
-                $updateData = [
-                    'first_name' => $firstName,
-                    'last_name' => $lastName,
-                    'location' => $formattedAddress,
-                    'latitude' => $latitude,
-                    'longitude' => $longitude,
-                    'radius' => $request->input('radius', 5),
-                    'main_goal' => $request->input('mainGoal'),
-                    'auth_provider' => $request->input('authProvider'),
-                    'auth_provider_id' => $request->input('authProviderId'),
-                    'email_verified_at' => now(), // Auto-verify for now
-                ];
-
-                // Only update optional fields if provided
-                if ($request->has('dateOfBirth') && $request->input('dateOfBirth')) {
-                    $updateData['date_of_birth'] = $request->input('dateOfBirth');
-                }
-                if ($request->has('gender') && $request->input('gender')) {
-                    $updateData['gender'] = $request->input('gender');
-                }
-
-                $user->update($updateData);
-
-                // Clear existing skill levels and create new ones
-                $user->skillLevels()->delete();
-            } else {
-                // Handle password for social vs email authentication
-                $password = $request->input('password');
-                if (!$password && $request->input('authProvider') !== 'email') {
-                    // Generate a random password for social authentication users
-                    $password = Str::random(32);
-                }
-
-                // Create new user
-                $userData = [
-                    'first_name' => $firstName,
-                    'last_name' => $lastName,
-                    'email' => $request->input('email'),
-                    'password' => Hash::make($password),
-                    'location' => $formattedAddress,
-                    'latitude' => $latitude,
-                    'longitude' => $longitude,
-                    'radius' => $request->input('radius', 5),
-                    'main_goal' => $request->input('mainGoal'),
-                    'auth_provider' => $request->input('authProvider'),
-                    'auth_provider_id' => $request->input('authProviderId'),
-                    'email_verified_at' => now(), // Auto-verify for now
-                ];
-
-                // Only add optional fields if provided
-                if ($request->has('dateOfBirth') && $request->input('dateOfBirth')) {
-                    $userData['date_of_birth'] = $request->input('dateOfBirth');
-                }
-                if ($request->has('gender') && $request->input('gender')) {
-                    $userData['gender'] = $request->input('gender');
-                }
-
-                $user = User::create($userData);
-            }
-
-            // Store user preferences - fix the mapping
-            $skillLevelsData = [];
-            foreach ($request->input('selectedSports') as $sportId) {
-                if (isset($request->input('skillLevels')[$sportId])) {
-                    $skillLevelsData[] = [
-                        'user_id' => $user->id,
-                        'game_type_id' => $sportId,
-                        'skill_level' => $request->input('skillLevels')[$sportId],
-                    ];
-                }
-            }
-
-            if (!empty($skillLevelsData)) {
-                $user->skillLevels()->createMany($skillLevelsData);
-                // Also sync game_user_interest so gameInterests() is populated (used by
-                // available-game-types, discussions filter, create-game, etc.)
-                $skillLevelMap = [
-                    'beginner' => 1,
-                    'intermediate' => 2,
-                    'advanced' => 3,
-                    'expert' => 3,
-                ];
-                $syncData = [];
-                foreach ($request->input('selectedSports') as $sportId) {
-                    $skillKey = $request->input('skillLevels')[$sportId] ?? 'beginner';
-                    $syncData[(int) $sportId] = [
-                        'skill_level' => $skillLevelMap[strtolower($skillKey)] ?? 1,
-                    ];
-                }
-                $user->gameInterests()->sync($syncData);
-            }
-
-            // Generate token
-            try {
-                $tokenResult = $user->createToken('auth-token');
-                $accessToken = $tokenResult->accessToken;
-                $tokenModel = $tokenResult->token;
-                Log::info('Token created successfully', ['user_id' => $user->id, 'token' => $accessToken]);
-            } catch (\Exception $e) {
-                Log::error('Token creation failed', ['user_id' => $user->id, 'error' => $e->getMessage()]);
-                $accessToken = null;
-                $tokenModel = null;
-            }
+            // Generate token for immediate login
+            $tokenResult = $user->createToken('auth-token');
+            $accessToken = $tokenResult->accessToken;
 
             return response()->json([
                 'success' => true,
                 'message' => 'Registration successful',
                 'data' => [
-                    'user' => $user->load(['skillLevels.gameType']),
+                    'user' => new UserResource($user->load(['skillLevels.gameType'])),
                     'token' => $accessToken
                 ]
             ], 201);

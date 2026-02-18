@@ -15,7 +15,7 @@ test('registration validation fails with missing fields', function () {
     $response = $this->postJson('/api/registration/register', []);
 
     $response->assertStatus(422)
-        ->assertJsonValidationErrors(['fullName', 'selectedSports', 'email', 'authProvider']);
+        ->assertJsonValidationErrors(['fullName', 'selectedSports', 'email', 'authProvider', 'dateOfBirth']);
 });
 
 test('user can register successfully', function () {
@@ -30,7 +30,8 @@ test('user can register successfully', function () {
         'skillLevels' => [$gameType->id => 'beginner'],
         'mainGoal' => 'fun',
         'radius' => 10,
-        'location' => 'New York, NY'
+        'location' => 'New York, NY',
+        'dateOfBirth' => '1990-01-01',
     ]);
 
     $response->assertStatus(201)
