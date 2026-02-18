@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
@@ -48,8 +50,8 @@ class UnifiedAuthController extends Controller
             }
 
             // Get auth type (default to email if not provided)
-            $authTypeValue = $request->input('auth_type', 1);
-            $authType = AuthType::fromValue($authTypeValue);
+            $authTypeValue = (int) $request->input('auth_type', 1);
+            $authType = AuthType::fromInt($authTypeValue);
             $credentials = $request->input('credentials');
 
             // Validate credentials based on auth type
@@ -74,7 +76,7 @@ class UnifiedAuthController extends Controller
                 // We need to get the token model to access the ID
                 // Get the most recent token for this user (the one just created)
                 $tokenModel = $user->tokens()->where('name', 'auth-token')->latest()->first();
-                
+
                 // If token model not found (shouldn't happen), use token string as fallback
                 if (!$tokenModel) {
                     // This is a fallback - the token was created but we can't find the model

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -83,6 +85,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'location_verified' => 'boolean',
             'is_online' => 'boolean',
             'last_seen_at' => 'datetime',
+            'auth_provider' => \App\Enums\AuthType::class,
         ];
     }
 
@@ -103,7 +106,9 @@ class User extends Authenticatable implements MustVerifyEmail
             return null;
         }
 
-        return $this->date_of_birth->diffInYears(now());
+        /** @var \Carbon\Carbon|null $dob */
+        $dob = $this->date_of_birth;
+        return (int) $dob?->diffInYears(now());
     }
 
     /**
@@ -133,8 +138,8 @@ class User extends Authenticatable implements MustVerifyEmail
     public function communities(): BelongsToMany
     {
         return $this->belongsToMany(Community::class, 'user_communities')
-                    ->withPivot('is_primary', 'is_active', 'joined_at')
-                    ->withTimestamps();
+            ->withPivot('is_primary', 'is_active', 'joined_at')
+            ->withTimestamps();
     }
 
     /**
@@ -196,7 +201,7 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * Scope to get users by community.
      */
-    public function scopeByCommunity($query, string $communityName, string $city = null, string $state = null)
+    public function scopeByCommunity($query, string $communityName, ?string $city = null, ?string $state = null)
     {
         $query->where('community_name', $communityName);
 
@@ -239,7 +244,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
         return static::where('id', '!=', $this->id)
             ->where('is_active', true)
-            ->withinRadius($this->latitude, $this->longitude, $radiusKm)
+            ->withinRadius((float) $this->latitude, (float) $this->longitude, $radiusKm)
             ->get();
     }
 

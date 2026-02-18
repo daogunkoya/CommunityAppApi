@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Auth\Providers;
 
 use App\Contracts\AuthProviderInterface;
