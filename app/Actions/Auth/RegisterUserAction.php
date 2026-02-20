@@ -41,10 +41,9 @@ class RegisterUserAction
             }
         }
 
-        // Split full name into first and last name
-        $nameParts = explode(' ', trim($data['fullName']), 2);
-        $firstName = $nameParts[0] ?? '';
-        $lastName = $nameParts[1] ?? '';
+        // Use provided first and last name
+        $firstName = $data['first_name'] ?? '';
+        $lastName = $data['last_name'] ?? '';
 
         // Handle password for social vs email authentication
         $password = $data['password'] ?? null;
@@ -70,8 +69,8 @@ class RegisterUserAction
         ];
 
         // Only add optional fields if provided
-        if (!empty($data['dateOfBirth'])) {
-            $userData['date_of_birth'] = $data['dateOfBirth'];
+        if (!empty($data['date_of_birth'])) {
+            $userData['date_of_birth'] = $data['date_of_birth'];
         }
         if (!empty($data['gender'])) {
             $userData['gender'] = $data['gender'];

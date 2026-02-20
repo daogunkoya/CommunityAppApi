@@ -97,7 +97,7 @@ class Tournament extends Model
 
     public function getStatusColorAttribute(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             'draft' => 'bg-gray-500',
             'pending_approval' => 'bg-yellow-500',
             'approved' => 'bg-green-500',
@@ -141,21 +141,25 @@ class Tournament extends Model
 
     public function getRegistrationProgressAttribute(): float
     {
-        if (!$this->max_participants) return 0;
+        if (!$this->max_participants)
+            return 0;
         return min(100, ($this->current_participants_count / $this->max_participants) * 100);
     }
 
     public function getDaysUntilDeadlineAttribute(): int
     {
-        return now()->diffInDays($this->registration_deadline, false);
+        return (int) now()->diffInDays($this->registration_deadline, false);
     }
 
     public function getDeadlineTextAttribute(): string
     {
         $days = $this->days_until_deadline;
-        if ($days < 0) return 'Registration closed';
-        if ($days === 0) return 'Today';
-        if ($days === 1) return '1 day left';
+        if ($days < 0)
+            return 'Registration closed';
+        if ($days === 0)
+            return 'Today';
+        if ($days === 1)
+            return '1 day left';
         return "{$days} days left";
     }
 }

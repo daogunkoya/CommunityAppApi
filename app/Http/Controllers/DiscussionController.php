@@ -16,10 +16,18 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use App\Services\ContentFilterService;
 use Carbon\Carbon;
 
 class DiscussionController extends Controller
 {
+    protected ContentFilterService $contentFilter;
+
+    public function __construct(ContentFilterService $contentFilter)
+    {
+        $this->contentFilter = $contentFilter;
+    }
+
     /**
      * Get all discussions with filtering and pagination
      */
@@ -36,20 +44,24 @@ class DiscussionController extends Controller
                 'my_discussions_only' => 'nullable|string|in:true,false,0,1',
                 'date_from' => 'nullable|date',
                 'date_to' => 'nullable|date',
-                'filter_by_interests' => 'nullable|string|in:true,false,0,1', // New parameter
+                'filter_by_interests' => 'nullable|string|in:true,false,0,1',
             ]);
 
             $perPage = $validated['per_page'] ?? 15;
             $user = $request->user();
 
+            // Get blocked user IDs
+            $blockedUserIds = $user->blockedUsers()->pluck('blocked_user_id')->toArray();
+
             $query = Discussion::with(['user', 'gameType', 'comments', 'likes'])
-                ->withCount(['comments', 'likes']);
+                ->withCount(['comments', 'likes'])
+                ->whereNotIn('user_id', $blockedUserIds); // Exclude blocked users
 
             // Apply search filter
             if (isset($validated['search'])) {
                 $query->where(function ($q) use ($validated) {
                     $q->where('title', 'like', '%' . $validated['search'] . '%')
-                      ->orWhere('body', 'like', '%' . $validated['search'] . '%');
+                        ->orWhere('body', 'like', '%' . $validated['search'] . '%');
                 });
             }
 
@@ -57,15 +69,14 @@ class DiscussionController extends Controller
             if (isset($validated['topic'])) {
                 $query->where(function ($q) use ($validated) {
                     $q->where('title', 'like', '%' . $validated['topic'] . '%')
-                      ->orWhere('body', 'like', '%' . $validated['topic'] . '%');
+                        ->orWhere('body', 'like', '%' . $validated['topic'] . '%');
                 });
             }
 
             // Apply user interest filtering (DEFAULT BEHAVIOR)
-            // Only show discussions for user's interests unless explicitly overridden
             $shouldFilterByInterests = !isset($validated['filter_by_interests']) ||
-                                     (isset($validated['filter_by_interests']) &&
-                                      in_array($validated['filter_by_interests'], ['true', '1'], true));
+                (isset($validated['filter_by_interests']) &&
+                    in_array($validated['filter_by_interests'], ['true', '1'], true));
 
             if ($shouldFilterByInterests) {
                 // Get user's sport interests
@@ -238,6 +249,9 @@ class DiscussionController extends Controller
                 'game_event_id' => 'nullable|exists:game_events,id',
             ]);
 
+            // Validate content for profanity
+            $this->contentFilter->validateContent($validated['title'], $validated['body']);
+
             DB::beginTransaction();
 
             $discussion = Discussion::create([
@@ -274,7 +288,7 @@ class DiscussionController extends Controller
             Log::error('Discussion store error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create discussion',
+                'message' => $e->getMessage() ?: 'Failed to create discussion',
             ], 500);
         }
     }
@@ -584,7 +598,7 @@ class DiscussionController extends Controller
                 $allTypes = GameType::orderBy('name')->get(['id', 'name', 'color', 'icon_path']);
                 return response()->json([
                     'success' => true,
-                    'data' => $allTypes->map(fn ($gt) => [
+                    'data' => $allTypes->map(fn($gt) => [
                         'id' => $gt->id,
                         'name' => $gt->name,
                         'color' => $gt->color,

@@ -27,6 +27,7 @@ class ProfileController extends Controller
                     'first_name' => $user->first_name,
                     'last_name' => $user->last_name,
                     'email' => $user->email,
+                    'role' => $user->role,
                     'location' => $user->location,
                     'phone' => $user->phone,
                     'profile_picture' => $user->profile_picture,
@@ -266,6 +267,80 @@ class ProfileController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update interests',
+            ], 500);
+        }
+    }
+    /**
+     * Update user's password
+     */
+    public function updatePassword(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            $validated = $request->validate([
+                'current_password' => 'required|string',
+                'password' => 'required|string|min:8|confirmed',
+            ]);
+
+            // Verify current password
+            if (!\Illuminate\Support\Facades\Hash::check($validated['current_password'], $user->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The provided current password does not match our records.',
+                ], 422);
+            }
+
+            // Update with new hashed password
+            $user->password = \Illuminate\Support\Facades\Hash::make($validated['password']);
+            $user->save();
+
+            Log::info("User {$user->id} updated their password.");
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Password updated successfully.',
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Update password error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update password',
+            ], 500);
+        }
+    }
+
+    public function destroy(Request $request): JsonResponse
+    {
+        try {
+            /** @var \App\Models\User $user */
+            $user = $request->user();
+
+            // Delete profile picture
+            if ($user->profile_picture && !str_starts_with($user->profile_picture, 'http')) {
+                Storage::disk('public')->delete($user->profile_picture);
+            }
+
+            // Delete user
+            $user->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Account deleted successfully'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Account deletion error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete account'
             ], 500);
         }
     }

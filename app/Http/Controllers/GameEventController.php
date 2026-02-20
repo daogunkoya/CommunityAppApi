@@ -24,10 +24,16 @@ use App\Actions\Events\CreateGameEventAction;
 use App\Actions\Events\JoinGameEventAction;
 use App\Actions\Events\LeaveGameEventAction;
 
+use App\Services\ContentFilterService;
+
 class GameEventController extends Controller
 {
-    public function __construct(public GameEventRepository $service)
+    protected ContentFilterService $contentFilter;
+
+    public function __construct(GameEventRepository $service, ContentFilterService $contentFilter)
     {
+        $this->service = $service;
+        $this->contentFilter = $contentFilter;
     }
 
     /**
@@ -54,11 +60,18 @@ class GameEventController extends Controller
             $page = $validated['page'] ?? 1;
             $user = $request->user();
 
+            // Get blocked user IDs
+            $blockedUserIds = $user ? $user->blockedUsers()->pluck('blocked_user_id')->toArray() : [];
+
             $query = GameEvent::with(['gameType', 'organiser', 'participants', 'community'])
                 ->where('starts_at', '>', now()->startOfMinute())
                 ->whereHas('gameType', function ($q) {
                     $q->whereNotNull('name')->where('name', '!=', '');
                 });
+
+            if (!empty($blockedUserIds)) {
+                $query->whereNotIn('organiser_id', $blockedUserIds);
+            }
 
             // If user has location, calculate distance and sort by distance
             if ($user && $user->latitude && $user->longitude) {
@@ -123,7 +136,7 @@ class GameEventController extends Controller
             }
 
             // Handle my_games_only filter
-            if (isset($validated['my_games_only'])) {
+            if (isset($validated['my_games_only']) && $user) {
                 $myGamesOnly = $validated['my_games_only'];
                 $shouldFilter = in_array($myGamesOnly, [true, 'true', '1', 1]);
 
@@ -169,7 +182,16 @@ class GameEventController extends Controller
     public function store(StoreEventRequest $request, CreateGameEventAction $action): JsonResponse
     {
         try {
-            $event = $action->execute($request->validated(), $request->user());
+            $data = $request->validated();
+
+            // Validate content for profanity
+            $this->contentFilter->validateContent(
+                $data['title'] ?? '',
+                $data['description'] ?? '',
+                $data['notes'] ?? ''
+            );
+
+            $event = $action->execute($data, $request->user());
 
             return response()->json([
                 'success' => true,
@@ -181,7 +203,7 @@ class GameEventController extends Controller
             Log::error('GameEvent store error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create game event',
+                'message' => $e->getMessage() ?: 'Failed to create game event',
             ], 500);
         }
     }
@@ -218,7 +240,16 @@ class GameEventController extends Controller
     public function update(UpdateEventRequest $request, GameEvent $event): JsonResponse
     {
         try {
-            $event->update($request->validated());
+            $data = $request->validated();
+
+            // Validate content for profanity
+            $this->contentFilter->validateContent(
+                $data['title'] ?? '',
+                $data['description'] ?? '',
+                $data['notes'] ?? ''
+            );
+
+            $event->update($data);
 
             return response()->json([
                 'success' => true,
@@ -230,7 +261,7 @@ class GameEventController extends Controller
             Log::error('GameEvent update error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update game event',
+                'message' => $e->getMessage() ?: 'Failed to update game event',
             ], 500);
         }
     }
@@ -456,6 +487,9 @@ class GameEventController extends Controller
                 'body' => 'required|string|max:1000',
             ]);
 
+            // Validate content for profanity
+            $this->contentFilter->validateContent($validated['body']);
+
             $user = $request->user();
 
             $comment = $event->comments()->create([
@@ -490,7 +524,7 @@ class GameEventController extends Controller
             Log::error('GameEvent addComment error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to add comment',
+                'message' => $e->getMessage() ?: 'Failed to add comment',
             ], 500);
         }
     }

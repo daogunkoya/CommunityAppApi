@@ -26,7 +26,7 @@ class AuthRegisterController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'password_confirmation' => ['required'],
-            'location' => ['required', 'string', 'max:255'],
+            'location' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:500'],
             'city' => ['nullable', 'string', 'max:255'],
             'state' => ['nullable', 'string', 'max:255'],
@@ -40,16 +40,31 @@ class AuthRegisterController extends Controller
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'bio' => ['nullable', 'string', 'max:1000'],
             'phone' => ['nullable', 'string', 'max:20'],
+            'selectedSports' => ['nullable', 'array'],
+            'skillLevels' => ['nullable', 'array'],
+            'mainGoal' => ['nullable', 'string'],
         ]);
 
         try {
             DB::beginTransaction();
 
+            // Handle mainGoal mapping
+            if (isset($validatedRequest['mainGoal'])) {
+                $validatedRequest['main_goal'] = $validatedRequest['mainGoal'];
+            }
+
+            // Extract sports data to process after user creation
+            $selectedSports = $validatedRequest['selectedSports'] ?? [];
+            $skillLevels = $validatedRequest['skillLevels'] ?? [];
+
+            // Remove non-column fields from validated request
+            unset($validatedRequest['password_confirmation']);
+            unset($validatedRequest['selectedSports']);
+            unset($validatedRequest['skillLevels']);
+            unset($validatedRequest['mainGoal']);
+
             // Hash the password before creating user
             $validatedRequest['password'] = Hash::make($validatedRequest['password']);
-
-            // Remove password_confirmation as it's not needed in the database
-            unset($validatedRequest['password_confirmation']);
 
             // Set location_verified to true if we have coordinates
             if (!empty($validatedRequest['latitude']) && !empty($validatedRequest['longitude'])) {
@@ -58,6 +73,24 @@ class AuthRegisterController extends Controller
 
             // Create user
             $user = User::create($validatedRequest);
+
+            // Attach sports interests
+            if (!empty($selectedSports)) {
+                $skillMapping = [
+                    'beginner' => \App\Enums\SkillLevel::Beginner->value,
+                    'intermediate' => \App\Enums\SkillLevel::Intermediate->value,
+                    'advanced' => \App\Enums\SkillLevel::Advanced->value,
+                ];
+
+                $syncData = [];
+                foreach ($selectedSports as $sportId) {
+                    $levelString = $skillLevels[$sportId] ?? 'beginner';
+                    $levelInt = $skillMapping[strtolower($levelString)] ?? \App\Enums\SkillLevel::Beginner->value;
+
+                    $syncData[$sportId] = ['skill_level' => $levelInt];
+                }
+                $user->gameInterests()->sync($syncData);
+            }
 
             // Assign user to community if we have location data
             if (!empty($validatedRequest['community_name']) || !empty($validatedRequest['borough'])) {
@@ -90,8 +123,9 @@ class AuthRegisterController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Registration error: ' . $e->getMessage());
             throw ValidationException::withMessages([
-                'email' => ['Registration failed. Please try again.'],
+                'email' => ['Registration failed: ' . $e->getMessage()],
             ]);
         }
     }

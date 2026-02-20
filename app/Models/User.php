@@ -27,6 +27,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'name',
         'email',
         'password',
+        'role',
         'location',
         'address',
         'city',
@@ -53,6 +54,21 @@ class User extends Authenticatable implements MustVerifyEmail
         'auth_provider',
         'auth_provider_id',
         'allow_notifications',
+    ];
+
+    /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array
+     */
+    protected $appends = [
+        'full_name',
+        'age',
+        'display_name',
+        'full_address',
+        'short_address',
+        'community_location',
+        'last_seen_formatted'
     ];
 
     /**
@@ -95,6 +111,24 @@ class User extends Authenticatable implements MustVerifyEmail
     public function getFullNameAttribute(): string
     {
         return "{$this->first_name} {$this->last_name}";
+    }
+
+    /**
+     * Formats the profile picture URL.
+     */
+    public function getProfilePictureAttribute($value): ?string
+    {
+        if (!$value) {
+            return null;
+        }
+
+        // Return as-is if it's already a full URL (legacy external auth)
+        if (str_starts_with($value, 'http')) {
+            return $value;
+        }
+
+        // Return dynamic host URL so mobile apps on local networks don't try to load "localhost"
+        return request()->getSchemeAndHttpHost() . '/storage/' . $value;
     }
 
     /**
@@ -365,5 +399,19 @@ class User extends Authenticatable implements MustVerifyEmail
     public function preferredFacilities()
     {
         return $this->hasMany(UserPreferredFacility::class);
+    }
+    public function reports()
+    {
+        return $this->hasMany(Report::class);
+    }
+
+    public function blockedUsers()
+    {
+        return $this->hasMany(BlockedUser::class);
+    }
+
+    public function usersBlockedByMe()
+    {
+        return $this->belongsToMany(User::class, 'blocked_users', 'user_id', 'blocked_user_id');
     }
 }

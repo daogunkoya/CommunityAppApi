@@ -24,7 +24,7 @@ class DashboardController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             Log::info("Dashboard - Loading complete dashboard for user {$user->id}");
 
             // Get user's sport interests first
@@ -49,7 +49,7 @@ class DashboardController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $data,
-                'message' => !empty($userInterestIds) 
+                'message' => !empty($userInterestIds)
                     ? 'Showing personalized content for: ' . implode(', ', $interestNames)
                     : 'Showing general content. Set your interests for personalized feed.',
             ]);
@@ -57,7 +57,7 @@ class DashboardController extends Controller
         } catch (\Exception $e) {
             Log::error('Dashboard index error: ' . $e->getMessage());
             Log::error($e->getTraceAsString());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch dashboard',
@@ -157,7 +157,7 @@ class DashboardController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             $validated = $request->validate([
                 'limit' => 'integer|min:1|max:50',
                 'page' => 'integer|min:1',
@@ -175,18 +175,22 @@ class DashboardController extends Controller
 
             Log::info("Dashboard Activity - User {$user->id} interests: " . implode(', ', $userInterestIds));
 
+            // Get blocked user IDs
+            $blockedUserIds = $user->blockedUsers()->pluck('blocked_user_id')->toArray();
+
             $activities = collect();
 
             // Get game events matching user's interests
             $gameEvents = GameEvent::with(['organiser', 'gameType', 'participants'])
                 ->whereIn('game_type_id', $userInterestIds)
+                ->whereNotIn('organiser_id', $blockedUserIds) // Exclude blocked users
                 ->when($user->latitude && $user->longitude && $user->radius, function ($query) use ($user) {
                     $earthRadius = 6371;
                     return $query->selectRaw("
                         *,
                         ({$earthRadius} * acos(cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) + sin(radians(?)) * sin(radians(latitude)))) AS distance
                     ", [$user->latitude, $user->longitude, $user->latitude])
-                    ->having('distance', '<=', $user->radius ?? 50);
+                        ->having('distance', '<=', $user->radius ?? 50);
                 })
                 ->where('starts_at', '>=', now())
                 ->orderBy('created_at', 'desc')
@@ -218,6 +222,7 @@ class DashboardController extends Controller
             // Get discussions matching user's interests
             $discussions = Discussion::with(['user', 'gameType'])
                 ->whereIn('game_type_id', $userInterestIds)
+                ->whereNotIn('user_id', $blockedUserIds) // Exclude blocked users
                 ->orderBy('created_at', 'desc')
                 ->limit($limit)
                 ->get()
@@ -272,7 +277,7 @@ class DashboardController extends Controller
         } catch (\Exception $e) {
             Log::error('Dashboard activity error: ' . $e->getMessage());
             Log::error($e->getTraceAsString());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch activity feed',
@@ -288,7 +293,7 @@ class DashboardController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             $validated = $request->validate([
                 'limit' => 'integer|min:1|max:50',
             ]);
@@ -316,7 +321,7 @@ class DashboardController extends Controller
                             *,
                             ({$earthRadius} * acos(cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) + sin(radians(?)) * sin(radians(latitude)))) AS distance
                         ", [$user->latitude, $user->longitude, $user->latitude])
-                        ->having('distance', '<=', $user->radius ?? 50);
+                            ->having('distance', '<=', $user->radius ?? 50);
                     })
                     ->orderBy('starts_at', 'asc')
                     ->limit($limit)
@@ -348,7 +353,7 @@ class DashboardController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Recommended games error: ' . $e->getMessage());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch recommended games',
@@ -363,7 +368,7 @@ class DashboardController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             $validated = $request->validate([
                 'limit' => 'integer|min:1|max:50',
             ]);
@@ -403,7 +408,7 @@ class DashboardController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Relevant tournaments error: ' . $e->getMessage());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch tournaments',
@@ -418,7 +423,7 @@ class DashboardController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             $validated = $request->validate([
                 'limit' => 'integer|min:1|max:50',
             ]);
@@ -453,7 +458,7 @@ class DashboardController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Upcoming games error: ' . $e->getMessage());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch upcoming games',
@@ -493,7 +498,7 @@ class DashboardController extends Controller
 
         } catch (\Exception $e) {
             Log::error('User interests error: ' . $e->getMessage());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch user interests',
@@ -553,8 +558,8 @@ class DashboardController extends Controller
         if ($level instanceof SkillLevel) {
             $level = $level->value;
         }
-        
-        return match($level) {
+
+        return match ($level) {
             1 => 'Beginner',
             2 => 'Intermediate',
             3 => 'Advanced',
@@ -681,8 +686,8 @@ class DashboardController extends Controller
         return Tournament::with(['gameType', 'participants'])
             ->whereIn('game_type_id', $interests)
             ->whereIn('status', ['open', 'filling-fast', 'registration-open'])
-            ->where('start_date', '>=', now())
-            ->orderBy('start_date', 'asc')
+            ->where('starts_at', '>=', now())
+            ->orderBy('starts_at', 'asc')
             ->limit($limit)
             ->get()
             ->map(function ($tournament) {
@@ -691,7 +696,7 @@ class DashboardController extends Controller
                     'title' => $tournament->name,
                     'sport' => $tournament->gameType->name,
                     'location' => $tournament->location,
-                    'date' => $tournament->start_date->format('M j, Y'),
+                    'date' => $tournament->starts_at->format('M j, Y'),
                     'participants' => $tournament->participants->count(),
                     'maxParticipants' => $tournament->max_participants,
                     'status' => ucfirst(str_replace('-', ' ', $tournament->status)),
@@ -709,8 +714,8 @@ class DashboardController extends Controller
             ->where('starts_at', '<', now())
             ->count();
         $completedEvents = GameEvent::where('starts_at', '<', now())->count();
-        
-        return $completedEvents > 0 ? round(($eventsWithParticipants / $completedEvents) * 100) : 0;
+
+        return $completedEvents > 0 ? (int) round(($eventsWithParticipants / $completedEvents) * 100) : 0;
     }
 }
 

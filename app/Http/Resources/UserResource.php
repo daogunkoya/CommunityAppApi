@@ -21,6 +21,7 @@ class UserResource extends JsonResource
             'first_name' => $this->first_name,
             'last_name' => $this->last_name,
             'email' => $this->email,
+            'role' => $this->role,
             'age' => $this->age, // Accessor or computed? 'date_of_birth' is the column, but RegistrationControllerTest expected 'age' in some places or 'date_of_birth'?
             // Wait, we removed 'age' column. But maybe we have an accessor?
             // The Refactor Plan says "Response Transformation... prevents exposing raw DB columns".

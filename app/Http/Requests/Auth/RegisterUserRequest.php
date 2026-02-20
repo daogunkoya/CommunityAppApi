@@ -24,15 +24,16 @@ class RegisterUserRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'fullName' => ['required', 'string', 'max:255'],
-            'dateOfBirth' => ['required', 'date', 'before:13 years ago', 'after:1900-01-01'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'date_of_birth' => ['nullable', 'date', 'before:13 years ago', 'after:1900-01-01'],
             'gender' => ['nullable', 'in:male,female,prefer-not-to-say,prefer_not_to_say'],
             'location' => ['nullable', 'string'],
             'radius' => ['integer', 'min:1', 'max:50'],
             'selectedSports' => ['required', 'array', 'min:1'],
             'selectedSports.*' => ['exists:game_types,id'],
             'skillLevels' => ['required', 'array'],
-            'skillLevels.*' => ['in:beginner,intermediate,advanced,expert'],
+            'skillLevels.*' => ['string'], // Allow any string for now, mapped in Action
             'mainGoal' => ['required', 'string'],
             'email' => ['required', 'email', 'unique:users,email'],
             'password' => ['required_if:authProvider,email', 'nullable', 'string', 'min:8'],
