@@ -65,7 +65,7 @@ class RegisterUserAction
             'main_goal' => $data['mainGoal'],
             'auth_provider' => $data['authProvider'],
             'auth_provider_id' => $data['authProviderId'] ?? null,
-            'email_verified_at' => now(), // Auto-verify for now
+            // 'email_verified_at' => now(), // Auto-verify removed, email verification required
         ];
 
         // Only add optional fields if provided
@@ -80,6 +80,9 @@ class RegisterUserAction
 
         // Store user preferences
         $this->storeSkillLevels($user, $data);
+
+        // Dispatch Registered event to trigger email verification notification
+        event(new \Illuminate\Auth\Events\Registered($user));
 
         return $user;
     }
