@@ -21,18 +21,36 @@ class ConversationController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+        $perPage = (int) $request->get('per_page', 20);
 
         $conversations = Conversation::whereHas('participants', function ($query) use ($user) {
             $query->where('users.id', $user->id);
-        })->with(['participants', 'lastMessage'])
+        })
+            ->with(['participants', 'lastMessage'])
+            ->withCount([
+                'messages as unread_count' => function ($query) use ($user) {
+                    $query->where('user_id', '!=', $user->id)
+                        ->whereNull('read_at');
+                }
+            ])
             ->orderByDesc('updated_at')
-            ->get()->map(function ($conversation) use ($user) {
-                return $this->formatConversation($conversation, $user);
-            });
+            ->paginate($perPage);
+
+        $formattedConversations = collect($conversations->items())->map(function ($conversation) use ($user) {
+            return $this->formatConversation($conversation, $user, (int) $conversation->unread_count);
+        });
 
         return response()->json([
             'success' => true,
-            'data' => $conversations
+            'data' => $formattedConversations,
+            'pagination' => [
+                'current_page' => $conversations->currentPage(),
+                'has_more' => $conversations->hasMorePages(),
+                'last_page' => $conversations->lastPage(),
+                'per_page' => $conversations->perPage(),
+                'total' => $conversations->total(),
+            ],
+            'unread_total' => $user->unread_notifications_count ?? 0 // Optional: top level unread count
         ]);
     }
 
@@ -44,11 +62,19 @@ class ConversationController extends Controller
         $user = $request->user();
         $conversation = Conversation::whereHas('participants', function ($query) use ($user) {
             $query->where('users.id', $user->id);
-        })->with(['participants', 'lastMessage'])->findOrFail($conversationId);
+        })
+            ->with(['participants', 'lastMessage'])
+            ->withCount([
+                'messages as unread_count' => function ($query) use ($user) {
+                    $query->where('user_id', '!=', $user->id)
+                        ->whereNull('read_at');
+                }
+            ])
+            ->findOrFail($conversationId);
 
         return response()->json([
             'success' => true,
-            'data' => $this->formatConversation($conversation, $user),
+            'data' => $this->formatConversation($conversation, $user, (int) $conversation->unread_count),
         ]);
     }
 
@@ -301,9 +327,13 @@ class ConversationController extends Controller
     /**
      * Format a conversation for API response
      */
-    private function formatConversation($conversation, User $currentUser)
+    private function formatConversation($conversation, User $currentUser, ?int $unreadCount = null)
     {
         $otherParticipants = $conversation->participants->where('id', '!=', $currentUser->id);
+
+        if ($unreadCount === null) {
+            $unreadCount = $this->getUnreadCount($conversation, $currentUser);
+        }
 
         if ($conversation->type === 'direct' && $otherParticipants->count() === 1) {
             // Get the user ID directly to avoid Eloquent caching issues
@@ -322,7 +352,7 @@ class ConversationController extends Controller
                 'name' => $participantInfo['name'],
                 'avatar' => $participantInfo['avatar'],
                 'last_message' => $this->formatLastMessage($conversation->lastMessage),
-                'unread_count' => $this->getUnreadCount($conversation, $currentUser),
+                'unread_count' => $unreadCount,
                 'participants_count' => $conversation->participants->count(),
                 'participant_online_status' => $participantInfo['online_status'],
                 'participant_last_seen' => $participantInfo['last_seen'],
@@ -342,7 +372,7 @@ class ConversationController extends Controller
             'name' => $conversation->name ?: 'Group Chat',
             'avatar' => null,
             'last_message' => $this->formatLastMessage($conversation->lastMessage),
-            'unread_count' => $this->getUnreadCount($conversation, $currentUser),
+            'unread_count' => $unreadCount,
             'participants_count' => $conversation->participants->count(),
             'participant_online_status' => null,
             'participant_last_seen' => null,
