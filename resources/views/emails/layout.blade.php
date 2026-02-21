@@ -19,8 +19,8 @@
             margin: 0 auto;
             background-color: #ffffff;
             padding: 40px 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
             margin-top: 40px;
             margin-bottom: 40px;
         }
@@ -108,7 +108,15 @@
         }
 
         .logo-container {
-            margin-bottom: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .logo-img {
+            height: 50px;
+            width: auto;
+            display: block;
+            margin: 0 auto;
         }
 
         .logo {
@@ -117,6 +125,7 @@
             color: #1e3a8a;
             letter-spacing: -0.5px;
             text-decoration: none;
+            display: inline-block;
         }
 
         .logo span {
@@ -145,12 +154,17 @@
 
 <body>
     <div class="container">
+        <div class="logo-container">
+            <a href="{{ config('app.url') }}">
+                <img src="{{ config('app.url') }}/images/logo.png" alt="MatchGrinder" class="logo-img">
+            </a>
+        </div>
         <div class="content">
             @yield('content')
         </div>
 
         <div class="footer">
-            <div class="logo-container">
+            <div class="logo-container" style="margin-bottom: 10px;">
                 <div class="logo">Match<span>Grinder</span></div>
             </div>
 

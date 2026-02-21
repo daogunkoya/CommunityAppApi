@@ -1,22 +1,28 @@
 @extends('emails.layout')
 
 @section('content')
-    <div class="greeting">Hi {{ $first_name }},</div>
+    <div class="greeting">Hey {{ $first_name }}! 👋</div>
 
-    <p>Welcome to MatchGrinder! We're excited to have you join our community.</p>
-    <p>Please click the button below to verify your email address and complete your registration.</p>
+    <p>We're thrilled to have you join MatchGrinder. You're just one step away from connecting with players and scaling your
+        game.</p>
+
+    <p>To get started, please verify your email address by clicking the button below:</p>
 
     <div class="button-container">
         <a href="{{ $verification_url }}" class="button">Verify Email Address</a>
     </div>
 
-    <p>If you did not create an account, no further action is required.</p>
+    <p>Once verified, you'll be able to:</p>
+    <ul class="bullet-list" style="list-style: none; padding-left: 0;">
+        <li style="margin-bottom: 10px;">✅ Create and join local tournaments</li>
+        <li style="margin-bottom: 10px;">✅ Connect with players in your area</li>
+        <li style="margin-bottom: 10px;">✅ Track your skill progress</li>
+    </ul>
+
+    <p>If you didn't sign up for MatchGrinder, you can safely ignore this email.</p>
 
     <div class="signoff">
-        <p>Cheers,</p>
-        <br>
-        <p class="signature-name">Remi Daniel</p>
-        <p class="signature-title">Community Manager</p>
-        <p class="signature-title">MatchGrinder</p>
+        <p>See you on the court!</p>
+        <p class="signature-name">The MatchGrinder Team</p>
     </div>
 @endsection
