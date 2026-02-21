@@ -129,8 +129,8 @@ class User extends Authenticatable implements MustVerifyEmail
             return $value;
         }
 
-        // Return dynamic host URL so mobile apps on local networks don't try to load "localhost"
-        return request()->getSchemeAndHttpHost() . '/storage/' . $value;
+        // Use config('app.url') since request()->getSchemeAndHttpHost() fails behind reverse proxies unconfigured in TrustProxies
+        return rtrim(config('app.url'), '/') . '/storage/' . ltrim($value, '/');
     }
 
     /**
