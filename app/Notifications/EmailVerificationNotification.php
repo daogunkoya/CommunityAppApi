@@ -9,6 +9,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Config;
 
 class EmailVerificationNotification extends Notification implements ShouldQueue
 {
@@ -46,15 +47,15 @@ class EmailVerificationNotification extends Notification implements ShouldQueue
             ]
         );
 
+        $spaUrl = Config::get('app.frontend_url') ?? Config::get('app.url');
+
         return (new MailMessage)
-            ->subject('Verify Your Email Address - Community Sport')
-            ->greeting("Hello {$notifiable->first_name}!")
-            ->line('Thank you for signing up for Community Sport!')
-            ->line('Please click the button below to verify your email address.')
-            ->action('Verify Email Address', $verificationUrl)
-            ->line('This verification link will expire in 24 hours.')
-            ->line('If you did not create an account, no further action is required.')
-            ->salutation('Best regards, The Community Sport Team');
+            ->subject('Verify Your Email Address - MatchGrinder')
+            ->view('emails.verify-email', [
+                'first_name' => $notifiable->first_name,
+                'verification_url' => $verificationUrl,
+                'email' => $notifiable->email,
+            ]);
     }
 
     /**

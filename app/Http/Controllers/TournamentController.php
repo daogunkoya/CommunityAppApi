@@ -9,6 +9,7 @@ use App\Models\TournamentMatch;
 use App\Models\TournamentBracket;
 use App\Models\User;
 use App\Models\GameType;
+use App\Notifications\TournamentJoinedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
@@ -507,6 +508,10 @@ class TournamentController extends Controller
             }
 
             DB::commit();
+
+            if (!$isWaiting) {
+                $user->notify(new TournamentJoinedNotification($tournament));
+            }
 
             $responseData = ['is_waiting' => $isWaiting];
             $responseData['conversation_id'] = $tournamentConversation->id;

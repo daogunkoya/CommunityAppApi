@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9fafa;
+            color: #333333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 40px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            margin-top: 40px;
+            margin-bottom: 40px;
+        }
+
+        .content {
+            font-size: 16px;
+        }
+
+        .greeting {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #111827;
+        }
+
+        .bullet-list {
+            list-style: none;
+            padding: 0;
+            margin: 30px 0;
+        }
+
+        .bullet-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .bullet-icon {
+            font-size: 20px;
+            margin-right: 12px;
+            line-height: 1.4;
+        }
+
+        .bullet-text {
+            flex: 1;
+        }
+
+        .button-container {
+            text-align: center;
+            margin: 35px 0;
+        }
+
+        .button {
+            display: inline-block;
+            background-color: #3b82f6;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        .button:hover {
+            background-color: #2563eb;
+        }
+
+        .signoff {
+            margin-top: 40px;
+            white-space: pre-line;
+        }
+
+        .signoff p {
+            margin: 5px 0;
+        }
+
+        .signature-name {
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .signature-title {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
+            color: #9ca3af;
+            font-size: 12px;
+        }
+
+        .logo-container {
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 900;
+            color: #1e3a8a;
+            letter-spacing: -0.5px;
+            text-decoration: none;
+        }
+
+        .logo span {
+            color: #3b82f6;
+        }
+
+        .footer-links {
+            margin-top: 15px;
+        }
+
+        .footer-links a {
+            color: #6b7280;
+            text-decoration: underline;
+        }
+
+        @media only screen and (max-width: 600px) {
+            .container {
+                padding: 20px 15px;
+                margin-top: 20px;
+                margin-bottom: 20px;
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="content">
+            @yield('content')
+        </div>
+
+        <div class="footer">
+            <div class="logo-container">
+                <div class="logo">Match<span>Grinder</span></div>
+            </div>
+
+            <p>If you no longer want to receive these emails, you can update your notification settings in the
+                MatchGrinder app.</p>
+
+            <div class="footer-links">
+                <a href="{{ config('app.url') }}/unsubscribe?email={{ $email ?? '' }}">Unsubscribe</a>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

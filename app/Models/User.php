@@ -11,6 +11,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Passport\HasApiTokens;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -285,6 +286,26 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * Verify email with token.
      */
+    public function canAccessPanel(\Filament\Panel $panel): bool
+    {
+        return true;
+    }
+
+    /**
+     * Get the devices (Push Tokens) registered to the user.
+     */
+    public function devices(): HasMany
+    {
+        return $this->hasMany(UserDevice::class);
+    }
+
+    /**
+     * Get the granular notification preferences for the user.
+     */
+    public function notificationPreferences(): HasMany
+    {
+        return $this->hasMany(NotificationPreference::class);
+    }
     public function verifyEmail(string $token): bool
     {
         if ($this->email_verification_token === $token) {

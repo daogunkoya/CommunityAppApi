@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\User\UserController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\NotificationSettingsController;
+use App\Http\Controllers\NotificationCenterController;
 use Illuminate\Support\Facades\Route;
 
 // User management routes (protected)
@@ -22,6 +24,16 @@ Route::middleware('auth:api')->group(function () {
     // Sport Interests Management
     Route::get('/profile/interests', [ProfileController::class, 'getInterests']);
     Route::post('/profile/interests', [ProfileController::class, 'updateInterests']);
+
+    // Device & Notification Settings
+    Route::post('/user/device-token', [NotificationSettingsController::class, 'registerDevice']);
+    Route::get('/user/notification-preferences', [NotificationSettingsController::class, 'getPreferences']);
+    Route::put('/user/notification-preferences', [NotificationSettingsController::class, 'updatePreferences']);
+
+    // In-App Notification Center
+    Route::get('/user/notifications', [NotificationCenterController::class, 'index']);
+    Route::put('/user/notifications/read-all', [NotificationCenterController::class, 'markAllAsRead']);
+    Route::put('/user/notifications/{id}/read', [NotificationCenterController::class, 'markAsRead']);
 
     // Reporting & Blocking
     Route::post('/reports', [\App\Http\Controllers\ReportController::class, 'store']);

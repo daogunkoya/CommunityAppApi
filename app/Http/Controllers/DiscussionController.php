@@ -443,6 +443,15 @@ class DiscussionController extends Controller
                 'discussion_id' => $discussion->id,
             ]);
 
+            // Notify Discussion Author
+            if ($discussion->author && $discussion->author->id !== $request->user()->id) {
+                $discussion->author->notify(new \App\Notifications\NewCommentNotification(
+                    $request->user(),
+                    $discussion->title,
+                    "/discussions/{$discussion->id}"
+                ));
+            }
+
             DB::commit();
 
             return response()->json([

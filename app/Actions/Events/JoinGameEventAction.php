@@ -55,6 +55,12 @@ class JoinGameEventAction
             // Create or get game chat between organiser and joiner
             $conversation = $this->getOrCreateDirectChat($event, $user);
 
+            // Notify Organiser that someone joined their game
+            $organiser = User::find($event->organiser_id);
+            if ($organiser && $organiser->id !== $user->id) {
+                $organiser->notify(new \App\Notifications\GameInviteNotification($event, $user));
+            }
+
             return [
                 'success' => true,
                 'message' => 'Successfully joined the event',

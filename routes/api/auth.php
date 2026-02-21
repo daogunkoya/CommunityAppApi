@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\UnifiedAuthController;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\AuthLoginController;
 use App\Http\Controllers\RegistrationController;
+use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Middleware\CorsMiddleware;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
@@ -19,6 +20,10 @@ Route::middleware([CorsMiddleware::class])->group(function () {
         Route::get('/sports', [RegistrationController::class, 'getSports']);
         Route::post('/facilities/search', [RegistrationController::class, 'searchFacilities']);
         Route::post('/register', [RegistrationController::class, 'register']);
+
+        // Email verification endpoints
+        Route::post('/verify-email', [EmailVerificationController::class, 'verify'])->name('verification.verify');
+        Route::post('/resend-verification', [EmailVerificationController::class, 'resend'])->name('verification.resend');
     });
 
     // Unified authentication endpoint

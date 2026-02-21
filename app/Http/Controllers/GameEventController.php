@@ -497,6 +497,17 @@ class GameEventController extends Controller
                 'body' => $validated['body'],
             ]);
 
+            // Notify Game Organiser
+            $organiser = $event->organiser;
+            if ($organiser && $organiser->id !== $user->id) {
+                $gameName = $event->gameType->name ?? 'your game';
+                $organiser->notify(new \App\Notifications\NewCommentNotification(
+                    $user,
+                    $gameName,
+                    "/games/{$event->id}"
+                ));
+            }
+
             $comment->load('author:id,full_name,profile_picture');
 
             return response()->json([

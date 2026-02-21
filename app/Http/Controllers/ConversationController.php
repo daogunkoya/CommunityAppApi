@@ -275,6 +275,12 @@ class ConversationController extends Controller
         // Update conversation's last message
         $conversation->update(['last_message_id' => $message->id]);
 
+        // Notify other participants
+        $otherParticipants = $conversation->participants()->where('users.id', '!=', $user->id)->get();
+        foreach ($otherParticipants as $participant) {
+            $participant->notify(new \App\Notifications\NewMessageNotification($message, $user, $conversation));
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
