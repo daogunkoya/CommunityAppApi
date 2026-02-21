@@ -22,7 +22,7 @@ Route::middleware([CorsMiddleware::class])->group(function () {
         Route::post('/register', [RegistrationController::class, 'register']);
 
         // Email verification endpoints
-        Route::post('/verify-email', [EmailVerificationController::class, 'verify'])->name('verification.verify');
+        Route::get('/verify-email', [EmailVerificationController::class, 'verify'])->name('verification.verify');
         Route::post('/resend-verification', [EmailVerificationController::class, 'resend'])->name('verification.resend');
     });
 

@@ -169,6 +169,15 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Send the email verification notification.
+     */
+    public function sendEmailVerificationNotification()
+    {
+        $token = $this->generateEmailVerificationToken();
+        $this->notify(new \App\Notifications\EmailVerificationNotification($token));
+    }
+
+    /**
      * Get the communities that the user belongs to.
      */
     public function communities(): BelongsToMany
