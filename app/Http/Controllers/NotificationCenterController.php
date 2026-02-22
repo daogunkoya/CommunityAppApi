@@ -53,7 +53,10 @@ class NotificationCenterController extends Controller
         try {
             $user = $request->user();
 
-            $notification = $user->notifications()->where('id', $id)->first();
+            // Ensure we are casting the ID to string for UUID matching
+            $notificationId = (string) $id;
+
+            $notification = $user->notifications()->where('id', $notificationId)->first();
 
             if ($notification) {
                 $notification->markAsRead();
