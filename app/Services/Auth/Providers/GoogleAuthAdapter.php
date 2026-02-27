@@ -14,11 +14,19 @@ use Illuminate\Support\Facades\Log;
 
 class GoogleAuthAdapter implements AuthProviderInterface
 {
-    private string $googleClientId;
+    private array $googleClientIds;
 
     public function __construct()
     {
-        $this->googleClientId = config('services.google.client_id') ?: 'mock-client-id-for-testing';
+        $this->googleClientIds = array_filter([
+            config('services.google.client_id'),
+            config('services.google.ios_client_id'),
+            config('services.google.android_client_id')
+        ]);
+
+        if (empty($this->googleClientIds)) {
+            $this->googleClientIds = ['mock-client-id-for-testing'];
+        }
     }
 
     public function authenticate(array $credentials): AuthResult
@@ -48,8 +56,8 @@ class GoogleAuthAdapter implements AuthProviderInterface
 
             // Check if user exists by Google user ID or email
             $user = User::where('auth_provider', 'google')
-                       ->where('auth_provider_id', $googleUserId)
-                       ->first();
+                ->where('auth_provider_id', $googleUserId)
+                ->first();
 
             if (!$user) {
                 // Check if user exists by email
@@ -116,13 +124,13 @@ class GoogleAuthAdapter implements AuthProviderInterface
                 $tokenInfo = $response->json();
 
                 // Verify audience (client ID)
-                if (isset($tokenInfo['aud']) && $tokenInfo['aud'] === $this->googleClientId) {
+                if (isset($tokenInfo['aud']) && in_array($tokenInfo['aud'], $this->googleClientIds)) {
                     Log::info('Google token verified successfully');
                     return true;
                 }
 
                 Log::warning('Google token verification failed: wrong audience', [
-                    'expected' => $this->googleClientId,
+                    'expected' => implode(', ', $this->googleClientIds),
                     'received' => $tokenInfo['aud'] ?? 'unknown'
                 ]);
                 return false;
@@ -194,9 +202,9 @@ class GoogleAuthAdapter implements AuthProviderInterface
 
             if ($response->successful()) {
                 $tokenInfo = $response->json();
-                
+
                 // Verify audience (client ID)
-                if (isset($tokenInfo['aud']) && $tokenInfo['aud'] === $this->googleClientId) {
+                if (isset($tokenInfo['aud']) && in_array($tokenInfo['aud'], $this->googleClientIds)) {
                     Log::info('Google ID token verified successfully');
                     // Extract user information from the payload
                     return [
@@ -209,7 +217,7 @@ class GoogleAuthAdapter implements AuthProviderInterface
                 }
 
                 Log::warning('Google ID token verification failed: wrong audience', [
-                    'expected' => $this->googleClientId,
+                    'expected' => implode(', ', $this->googleClientIds),
                     'received' => $tokenInfo['aud'] ?? 'unknown'
                 ]);
                 return null;
